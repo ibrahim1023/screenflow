@@ -7,9 +7,25 @@
 
 import Foundation
 import Testing
+import SwiftData
 @testable import screenflow
 
 struct screenflowTests {
+    @MainActor
+    private func makeRepository() throws -> ScreenFlowRepository {
+        let schema = Schema([
+            ScreenRecord.self,
+            OCRArtifact.self,
+            LLMResult.self,
+            ExtractionResult.self,
+            ActionPackRun.self,
+        ])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let modelContext = ModelContext(container)
+        return ScreenFlowRepository(modelContext: modelContext)
+    }
+
     @Test func screenRecordStoresDeterministicFields() async throws {
         let fixedDate = Date(timeIntervalSince1970: 1_700_000_000)
         let record = ScreenRecord(
@@ -132,6 +148,104 @@ struct screenflowTests {
         } catch let error as StableScreenIdentifierError {
             #expect(error == .emptyProcessingVersion)
         }
+    }
+
+    @MainActor
+    @Test func repositoryUpsertsScreenRecordWithoutDuplicatingPrimaryKey() async throws {
+        let repository = try makeRepository()
+        let createdAt = Date(timeIntervalSince1970: 1_700_000_100)
+
+        _ = try repository.upsertScreenRecord(
+            ScreenRecordInput(
+                id: "screen-1",
+                createdAt: createdAt,
+                source: .photoPicker,
+                imagePath: "Screens/screen-1.jpg",
+                imageWidth: 1179,
+                imageHeight: 2556,
+                scenario: .unknown,
+                scenarioConfidence: 0.0,
+                processingVersion: "1.0.0",
+                lastOpenedAt: nil
+            )
+        )
+
+        _ = try repository.upsertScreenRecord(
+            ScreenRecordInput(
+                id: "screen-1",
+                createdAt: createdAt,
+                source: .shareSheet,
+                imagePath: "Screens/screen-1.updated.jpg",
+                imageWidth: 1179,
+                imageHeight: 2556,
+                scenario: .jobListing,
+                scenarioConfidence: 0.92,
+                processingVersion: "1.1.0",
+                lastOpenedAt: Date(timeIntervalSince1970: 1_700_000_200)
+            )
+        )
+
+        let records = try repository.listScreenRecords()
+        #expect(records.count == 1)
+        #expect(records[0].scenario == .jobListing)
+        #expect(records[0].processingVersion == "1.1.0")
+        #expect(records[0].source == .shareSheet)
+    }
+
+    @MainActor
+    @Test func repositoryPersistsCorePipelineArtifacts() async throws {
+        let repository = try makeRepository()
+        let createdAt = Date(timeIntervalSince1970: 1_700_000_300)
+
+        _ = try repository.upsertOCRArtifact(
+            OCRArtifactInput(
+                id: "ocr-1",
+                screenId: "screen-1",
+                engineVersion: "vision-1",
+                blocksJSONPath: "OCR/ocr-1.json",
+                languageHint: "en-US",
+                createdAt: createdAt
+            )
+        )
+        _ = try repository.upsertLLMResult(
+            LLMResultInput(
+                id: "llm-1",
+                screenId: "screen-1",
+                model: "local-model",
+                promptVersion: "screenflow-spec-v1",
+                rawResponseJSONPath: "LLM/llm-1.raw.json",
+                validatedJSONPath: "LLM/llm-1.validated.json",
+                createdAt: createdAt
+            )
+        )
+        _ = try repository.upsertExtractionResult(
+            ExtractionResultInput(
+                id: "extract-1",
+                screenId: "screen-1",
+                schemaVersion: "screenflow-spec-v1",
+                entitiesJSONPath: "Extracted/extract-1.entities.json",
+                intentGraphJSONPath: "Graph/extract-1.graph.json",
+                createdAt: createdAt,
+                userOverridesJSONPath: nil
+            )
+        )
+        _ = try repository.upsertActionPackRun(
+            ActionPackRunInput(
+                id: "run-1",
+                screenId: "screen-1",
+                packId: "event_flyer.add_to_calendar",
+                packVersion: "1.0.0",
+                inputParamsJSONPath: "Runs/run-1.input.json",
+                traceJSONPath: "Runs/run-1.trace.json",
+                status: .success,
+                createdAt: createdAt
+            )
+        )
+
+        #expect(try repository.ocrArtifact(id: "ocr-1") != nil)
+        #expect(try repository.llmResult(id: "llm-1")?.model == "local-model")
+        #expect(try repository.extractionResult(id: "extract-1")?.schemaVersion == "screenflow-spec-v1")
+        #expect(try repository.actionPackRun(id: "run-1")?.status == .success)
     }
 
 }
