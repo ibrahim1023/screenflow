@@ -6,10 +6,11 @@ ScreenFlow is an iOS app that turns screenshots into structured, validated outpu
 
 - Imports screenshots from share sheet or photo picker
 - Runs on-device OCR
-- Sends normalized OCR to an LLM for semantic interpretation
+- Sends normalized OCR to a local/open model runtime for semantic interpretation
 - Validates and canonicalizes structured output deterministically
 - Suggests and executes action packs
 - Persists artifacts and execution traces for replay
+- Does not require paid LLM providers
 
 ## Architecture Summary
 

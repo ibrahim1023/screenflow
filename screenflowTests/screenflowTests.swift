@@ -83,4 +83,55 @@ struct screenflowTests {
         }
     }
 
+    @Test func stableScreenIdentifierIsDeterministicForSameInputs() async throws {
+        let generator = StableScreenIdentifierGenerator()
+        let normalizedBytes = Data([0xAA, 0xBB, 0xCC, 0xDD])
+
+        let first = try generator.makeIdentifier(
+            normalizedImageBytes: normalizedBytes,
+            processingVersion: "1.0.0"
+        )
+        let second = try generator.makeIdentifier(
+            normalizedImageBytes: normalizedBytes,
+            processingVersion: "1.0.0"
+        )
+
+        #expect(first == second)
+        #expect(first.count == 64)
+    }
+
+    @Test func stableScreenIdentifierChangesWhenProcessingVersionChanges() async throws {
+        let generator = StableScreenIdentifierGenerator()
+        let normalizedBytes = Data([0xAA, 0xBB, 0xCC, 0xDD])
+
+        let v1 = try generator.makeIdentifier(
+            normalizedImageBytes: normalizedBytes,
+            processingVersion: "1.0.0"
+        )
+        let v2 = try generator.makeIdentifier(
+            normalizedImageBytes: normalizedBytes,
+            processingVersion: "1.1.0"
+        )
+
+        #expect(v1 != v2)
+    }
+
+    @Test func stableScreenIdentifierRejectsEmptyInputs() async throws {
+        let generator = StableScreenIdentifierGenerator()
+
+        do {
+            _ = try generator.makeIdentifier(normalizedImageBytes: Data(), processingVersion: "1.0.0")
+            #expect(Bool(false))
+        } catch let error as StableScreenIdentifierError {
+            #expect(error == .emptyNormalizedImageBytes)
+        }
+
+        do {
+            _ = try generator.makeIdentifier(normalizedImageBytes: Data([0x01]), processingVersion: "")
+            #expect(Bool(false))
+        } catch let error as StableScreenIdentifierError {
+            #expect(error == .emptyProcessingVersion)
+        }
+    }
+
 }
