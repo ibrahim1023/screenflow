@@ -12,7 +12,10 @@ import SwiftData
 struct screenflowApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            ScreenRecord.self,
+            OCRArtifact.self,
+            ExtractionResult.self,
+            ActionPackRun.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

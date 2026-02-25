@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0F3E39DA2F4EFE0200B85450 /* scope.md in Resources */ = {isa = PBXBuildFile; fileRef = 0F3E39D72F4EFE0200B85450 /* scope.md */; };
+		0F3E39E52F4EFEB000B85450 /* task.md in Resources */ = {isa = PBXBuildFile; fileRef = 0F3E39E42F4EFEB000B85450 /* task.md */; };
+		0F3E39E72F4EFF5000B85450 /* AGENTS.md in Resources */ = {isa = PBXBuildFile; fileRef = 0F3E39E62F4EFF4D00B85450 /* AGENTS.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		0F06A6B42F4EFAF800064157 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +33,10 @@
 		0F06A6A42F4EFAF800064157 /* screenflow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = screenflow.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0F06A6B32F4EFAF800064157 /* screenflowTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = screenflowTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0F06A6BD2F4EFAF800064157 /* screenflowUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = screenflowUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0F3E39D72F4EFE0200B85450 /* scope.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = scope.md; sourceTree = "<group>"; };
+		0F3E39E42F4EFEB000B85450 /* task.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = task.md; sourceTree = "<group>"; };
+		0F3E39E62F4EFF4D00B85450 /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
+		0F3E39EE2F4F00F000B85450 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -79,6 +89,16 @@
 				0F06A6B62F4EFAF800064157 /* screenflowTests */,
 				0F06A6C02F4EFAF800064157 /* screenflowUITests */,
 				0F06A6A52F4EFAF800064157 /* Products */,
+				0F3E39E42F4EFEB000B85450 /* task.md */,
+				0F3E39D72F4EFE0200B85450 /* scope.md */,
+				0F3E39EE2F4F00F000B85450 /* .gitignore */,
+				0F3E39E62F4EFF4D00B85450 /* AGENTS.md */,
+				0F3E39E82F4F000E00B85450 /* Core */,
+				0F3E39E92F4F000E00B85450 /* Features */,
+				0F3E39EA2F4F000E00B85450 /* UI */,
+				0F3E39EB2F4F000F00B85450 /* Services */,
+				0F3E39EC2F4F000F00B85450 /* Models */,
+				0F3E39ED2F4F000F00B85450 /* Tests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -90,6 +110,48 @@
 				0F06A6BD2F4EFAF800064157 /* screenflowUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		0F3E39E82F4F000E00B85450 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		0F3E39E92F4F000E00B85450 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		0F3E39EA2F4F000E00B85450 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		0F3E39EB2F4F000F00B85450 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		0F3E39EC2F4F000F00B85450 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		0F3E39ED2F4F000F00B85450 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Tests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -212,6 +274,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0F3E39E52F4EFEB000B85450 /* task.md in Resources */,
+				0F3E39E72F4EFF5000B85450 /* AGENTS.md in Resources */,
+				0F3E39DA2F4EFE0200B85450 /* scope.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -390,6 +455,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = screenflow/screenflow.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = X7YBJSCF7D;
@@ -398,6 +464,9 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "ScreenFlow needs calendar access to create event actions from extracted flyer details.";
+				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "ScreenFlow needs calendar access to add events generated from screenshot understanding.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "ScreenFlow needs photo library access so you can import screenshots for on-device processing.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -434,6 +503,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = screenflow/screenflow.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = X7YBJSCF7D;
@@ -442,6 +512,9 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "ScreenFlow needs calendar access to create event actions from extracted flyer details.";
+				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "ScreenFlow needs calendar access to add events generated from screenshot understanding.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "ScreenFlow needs photo library access so you can import screenshots for on-device processing.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
