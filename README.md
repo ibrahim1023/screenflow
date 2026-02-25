@@ -28,9 +28,6 @@ LLM output is never accepted directly without deterministic validation.
 - `screenflow/` app target
 - `screenflow/Models/` SwiftData models
 - `screenflowTests/` unit tests
-- `scope.md` product and architecture contract
-- `task.md` execution tracker
-- `AGENTS.md` contributor operating rules
 
 ## Development
 
@@ -51,7 +48,3 @@ Test:
 ```bash
 xcodebuild -scheme screenflow -destination 'platform=iOS Simulator,name=iPhone 17' test
 ```
-
-## Current Focus
-
-See `task.md` for the implementation checklist and status.
