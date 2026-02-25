@@ -48,4 +48,39 @@ struct screenflowTests {
         #expect(run.traceJSONPath == "Runs/run-1.trace.json")
     }
 
+    @Test func llmResultCapturesModelAndPromptVersions() async throws {
+        let result = LLMResult(
+            id: "llm-1",
+            screenId: "abc123",
+            model: "gpt-4.1-mini",
+            promptVersion: "screenflow-spec-v1",
+            rawResponseJSONPath: "LLM/llm-1.raw.json",
+            validatedJSONPath: "LLM/llm-1.validated.json"
+        )
+
+        #expect(result.id == "llm-1")
+        #expect(result.model == "gpt-4.1-mini")
+        #expect(result.promptVersion == "screenflow-spec-v1")
+        #expect(result.validatedJSONPath == "LLM/llm-1.validated.json")
+    }
+
+    @Test func storagePathServiceBuildsAppSupportSubdirectoryPath() async throws {
+        let service = StoragePathService(rootFolderName: "ScreenFlowTest")
+        let path = try service.applicationSupportPath(for: .ocr)
+
+        #expect(path.path.contains("Application Support"))
+        #expect(path.path.hasSuffix("/ScreenFlowTest/OCR"))
+    }
+
+    @Test func storagePathServiceThrowsWhenAppGroupUnavailable() async throws {
+        let service = StoragePathService(appGroupIdentifier: "group.invalid.screenflow")
+
+        do {
+            _ = try service.appGroupRoot()
+            #expect(Bool(false))
+        } catch let error as StoragePathError {
+            #expect(error == .appGroupUnavailable("group.invalid.screenflow"))
+        }
+    }
+
 }

@@ -14,6 +14,7 @@ struct screenflowApp: App {
         let schema = Schema([
             ScreenRecord.self,
             OCRArtifact.self,
+            LLMResult.self,
             ExtractionResult.self,
             ActionPackRun.self,
         ])
