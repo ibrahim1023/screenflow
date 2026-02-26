@@ -62,9 +62,14 @@ struct ContentView: View {
 
                     let repository = ScreenFlowRepository(modelContext: modelContext)
                     let importer = InAppPhotoImportService()
-                    _ = try importer.importPhotoData(
+                    let screenRecord = try importer.importPhotoData(
                         data,
                         source: .photoPicker,
+                        repository: repository
+                    )
+                    let ocrPipeline = OCRArtifactPipelineService()
+                    _ = try ocrPipeline.runOCRAndPersist(
+                        for: screenRecord,
                         repository: repository
                     )
                 } catch {

@@ -11,6 +11,18 @@ import SwiftData
 @testable import screenflow
 
 struct screenflowTests {
+    private struct FakeOCRExtractor: OCRExtracting {
+        let spec: OCRBlockSpecV1
+
+        func extractOCRBlockSpec(
+            imageData: Data,
+            source: ScreenSource,
+            processingVersion: String
+        ) throws -> OCRBlockSpecV1 {
+            spec
+        }
+    }
+
     @MainActor
     private func makeRepository() throws -> ScreenFlowRepository {
         let schema = Schema([
@@ -311,6 +323,84 @@ struct screenflowTests {
         #expect(first.pngData == second.pngData)
         #expect(first.width == second.width)
         #expect(first.height == second.height)
+    }
+
+    @MainActor
+    @Test func ocrBlockNormalizerCanonicalizesWhitespaceAndSortOrder() async throws {
+        let normalizer = OCRBlockNormalizer()
+        let pageSize = OCRPageSize(width: 1179, height: 2556)
+        let candidates = [
+            OCRCandidate(
+                text: "  role  \n title ",
+                bbox: OCRBoundingBox(x: 0.3, y: 0.2, width: 0.2, height: 0.05),
+                confidence: 0.923456
+            ),
+            OCRCandidate(
+                text: "company",
+                bbox: OCRBoundingBox(x: 0.1, y: 0.1, width: 0.2, height: 0.05),
+                confidence: 0.812345
+            )
+        ]
+
+        let spec = normalizer.makeSpec(
+            candidates: candidates,
+            pageSize: pageSize,
+            source: .photoPicker,
+            processingVersion: "1.0.0",
+            languageHint: "en-US"
+        )
+
+        #expect(spec.schemaVersion == "OCRBlockSpec.v1")
+        #expect(spec.blocks.count == 2)
+        #expect(spec.blocks[0].text == "company")
+        #expect(spec.blocks[1].text == "role title")
+        #expect(spec.blocks[0].confidence == 0.8123)
+    }
+
+    @MainActor
+    @Test func ocrArtifactPipelinePersistsJSONAndRepositoryArtifact() async throws {
+        let repository = try makeRepository()
+        let rootFolderName = "ScreenFlowOCRTest-\(UUID().uuidString)"
+        let storage = StoragePathService(rootFolderName: rootFolderName)
+        let importer = InAppPhotoImportService(
+            processingVersion: "1.0.0",
+            storagePathService: storage
+        )
+
+        let pngData = try #require(Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zq4kAAAAASUVORK5CYII="))
+        let screen = try importer.importPhotoData(
+            pngData,
+            source: .photoPicker,
+            repository: repository
+        )
+
+        let fakeSpec = OCRBlockSpecV1(
+            schemaVersion: "OCRBlockSpec.v1",
+            source: ScreenSource.photoPicker.rawValue,
+            processingVersion: "1.0.0",
+            languageHint: "en-US",
+            blocks: [
+                OCRTextBlock(
+                    text: "hello",
+                    bbox: OCRBoundingBox(x: 0.1, y: 0.2, width: 0.3, height: 0.1),
+                    pageSize: OCRPageSize(width: 1, height: 1),
+                    confidence: 0.99
+                )
+            ]
+        )
+
+        let pipeline = OCRArtifactPipelineService(
+            extractionService: FakeOCRExtractor(spec: fakeSpec),
+            storagePathService: storage
+        )
+
+        let artifact = try pipeline.runOCRAndPersist(for: screen, repository: repository)
+        #expect(FileManager.default.fileExists(atPath: artifact.blocksJSONPath))
+        #expect(artifact.languageHint == "en-US")
+
+        let fileData = try Data(contentsOf: URL(fileURLWithPath: artifact.blocksJSONPath))
+        let decoded = try JSONDecoder().decode(OCRBlockSpecV1.self, from: fileData)
+        #expect(decoded == fakeSpec)
     }
 
 }
