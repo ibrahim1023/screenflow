@@ -7,12 +7,20 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0FA13C512F5048F000A12345 /* screenflowShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 0FA13C432F5048F000A12345 /* screenflowShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		0F3E39DA2F4EFE0200B85450 /* scope.md in Resources */ = {isa = PBXBuildFile; fileRef = 0F3E39D72F4EFE0200B85450 /* scope.md */; };
 		0F3E39E52F4EFEB000B85450 /* task.md in Resources */ = {isa = PBXBuildFile; fileRef = 0F3E39E42F4EFEB000B85450 /* task.md */; };
 		0F3E39E72F4EFF5000B85450 /* AGENTS.md in Resources */ = {isa = PBXBuildFile; fileRef = 0F3E39E62F4EFF4D00B85450 /* AGENTS.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		0FA13C4D2F5048F000A12345 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0F06A69C2F4EFAF800064157 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0FA13C3A2F5048F000A12345;
+			remoteInfo = screenflowShareExtension;
+		};
 		0F06A6B42F4EFAF800064157 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0F06A69C2F4EFAF800064157 /* Project object */;
@@ -33,6 +41,7 @@
 		0F06A6A42F4EFAF800064157 /* screenflow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = screenflow.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0F06A6B32F4EFAF800064157 /* screenflowTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = screenflowTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0F06A6BD2F4EFAF800064157 /* screenflowUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = screenflowUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0FA13C432F5048F000A12345 /* screenflowShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = screenflowShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		0F3E39D72F4EFE0200B85450 /* scope.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = scope.md; sourceTree = "<group>"; };
 		0F3E39E42F4EFEB000B85450 /* task.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = task.md; sourceTree = "<group>"; };
 		0F3E39E62F4EFF4D00B85450 /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
@@ -55,7 +64,26 @@
 			path = screenflowUITests;
 			sourceTree = "<group>";
 		};
+		0FA13C452F5048F000A12345 /* screenflowShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = screenflowShareExtension;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		0FA13C4B2F5048F000A12345 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				0FA13C512F5048F000A12345 /* screenflowShareExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		0F06A6A12F4EFAF800064157 /* Frameworks */ = {
@@ -79,6 +107,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0FA13C402F5048F000A12345 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -88,6 +123,7 @@
 				0F06A6A62F4EFAF800064157 /* screenflow */,
 				0F06A6B62F4EFAF800064157 /* screenflowTests */,
 				0F06A6C02F4EFAF800064157 /* screenflowUITests */,
+				0FA13C452F5048F000A12345 /* screenflowShareExtension */,
 				0F06A6A52F4EFAF800064157 /* Products */,
 				0F3E39E42F4EFEB000B85450 /* task.md */,
 				0F3E39D72F4EFE0200B85450 /* scope.md */,
@@ -108,6 +144,7 @@
 				0F06A6A42F4EFAF800064157 /* screenflow.app */,
 				0F06A6B32F4EFAF800064157 /* screenflowTests.xctest */,
 				0F06A6BD2F4EFAF800064157 /* screenflowUITests.xctest */,
+				0FA13C432F5048F000A12345 /* screenflowShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -164,10 +201,12 @@
 				0F06A6A02F4EFAF800064157 /* Sources */,
 				0F06A6A12F4EFAF800064157 /* Frameworks */,
 				0F06A6A22F4EFAF800064157 /* Resources */,
+				0FA13C4B2F5048F000A12345 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				0FA13C4F2F5048F000A12345 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0F06A6A62F4EFAF800064157 /* screenflow */,
@@ -225,6 +264,28 @@
 			productReference = 0F06A6BD2F4EFAF800064157 /* screenflowUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		0FA13C3A2F5048F000A12345 /* screenflowShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0FA13C492F5048F000A12345 /* Build configuration list for PBXNativeTarget "screenflowShareExtension" */;
+			buildPhases = (
+				0FA13C3F2F5048F000A12345 /* Sources */,
+				0FA13C402F5048F000A12345 /* Frameworks */,
+				0FA13C412F5048F000A12345 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				0FA13C452F5048F000A12345 /* screenflowShareExtension */,
+			);
+			name = screenflowShareExtension;
+			packageProductDependencies = (
+			);
+			productName = screenflowShareExtension;
+			productReference = 0FA13C432F5048F000A12345 /* screenflowShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -246,6 +307,9 @@
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = 0F06A6A32F4EFAF800064157;
 					};
+					0FA13C3A2F5048F000A12345 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 				};
 			};
 			buildConfigurationList = 0F06A69F2F4EFAF800064157 /* Build configuration list for PBXProject "screenflow" */;
@@ -265,6 +329,7 @@
 				0F06A6A32F4EFAF800064157 /* screenflow */,
 				0F06A6B22F4EFAF800064157 /* screenflowTests */,
 				0F06A6BC2F4EFAF800064157 /* screenflowUITests */,
+				0FA13C3A2F5048F000A12345 /* screenflowShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -288,6 +353,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		0F06A6BB2F4EFAF800064157 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0FA13C412F5048F000A12345 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -318,6 +390,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0FA13C3F2F5048F000A12345 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -330,6 +409,11 @@
 			isa = PBXTargetDependency;
 			target = 0F06A6A32F4EFAF800064157 /* screenflow */;
 			targetProxy = 0F06A6BE2F4EFAF800064157 /* PBXContainerItemProxy */;
+		};
+		0FA13C4F2F5048F000A12345 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0FA13C3A2F5048F000A12345 /* screenflowShareExtension */;
+			targetProxy = 0FA13C4D2F5048F000A12345 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -648,6 +732,72 @@
 			};
 			name = Release;
 		};
+		0FA13C472F5048F000A12345 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = screenflowShareExtension/screenflowShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X7YBJSCF7D;
+				EXCLUDED_SOURCE_FILE_NAMES = Info.plist;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = screenflowShareExtension-Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = IbrahimArshad.screenflow.shareextension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		0FA13C482F5048F000A12345 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = screenflowShareExtension/screenflowShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X7YBJSCF7D;
+				EXCLUDED_SOURCE_FILE_NAMES = Info.plist;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = screenflowShareExtension-Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = IbrahimArshad.screenflow.shareextension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -683,6 +833,15 @@
 			buildConfigurations = (
 				0F06A6CE2F4EFAF800064157 /* Debug */,
 				0F06A6CF2F4EFAF800064157 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0FA13C492F5048F000A12345 /* Build configuration list for PBXNativeTarget "screenflowShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0FA13C472F5048F000A12345 /* Debug */,
+				0FA13C482F5048F000A12345 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
