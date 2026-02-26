@@ -609,4 +609,96 @@ struct screenflowTests {
         #expect(FileManager.default.fileExists(atPath: outcome.llmResult.validatedJSONPath))
     }
 
+    @MainActor
+    @Test
+    func screenFlowSpecValidationRejectsInvalidSchemaAndConfidence() async throws {
+        let validator = ScreenFlowSpecValidationService()
+
+        let invalidSchema = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v0",
+            scenario: .unknown,
+            scenarioConfidence: 0.5,
+            entities: .empty,
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "m", promptVersion: "p")
+        )
+
+        do {
+            _ = try validator.validateAndCanonicalize(invalidSchema)
+            #expect(Bool(false))
+        } catch let error as ScreenFlowSpecValidationError {
+            #expect(error == .invalidSchemaVersion("ScreenFlowSpec.v0"))
+        }
+
+        let invalidConfidence = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .unknown,
+            scenarioConfidence: 1.5,
+            entities: .empty,
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "m", promptVersion: "p")
+        )
+
+        do {
+            _ = try validator.validateAndCanonicalize(invalidConfidence)
+            #expect(Bool(false))
+        } catch let error as ScreenFlowSpecValidationError {
+            #expect(error == .invalidScenarioConfidence(1.5))
+        }
+    }
+
+    @MainActor
+    @Test
+    func screenFlowSpecValidationNormalizesAndCanonicalizesDeterministically() async throws {
+        let validator = ScreenFlowSpecValidationService()
+
+        let input = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .eventFlyer,
+            scenarioConfidence: 0.77,
+            entities: ScreenFlowEntities(
+                job: JobEntities(
+                    company: "  Acme  ",
+                    role: " iOS   Engineer ",
+                    location: " Remote ",
+                    skills: [" Swift ", "Swift", " XCTest "],
+                    salaryRange: SalaryRange(min: 180000.257, max: 120000.129, currency: " usd "),
+                    link: " https://example.com/job "
+                ),
+                event: EventEntities(
+                    title: " Launch  Party ",
+                    dateTime: "2026-03-01T09:00:00.000Z",
+                    venue: "  HQ  ",
+                    address: " 123 Street ",
+                    link: " https://example.com/event "
+                ),
+                error: ErrorEntities(
+                    errorType: " crash ",
+                    message: " fatal   error ",
+                    stackTrace: " line1\\n line2 ",
+                    toolName: " xcode ",
+                    filePaths: [" /a.swift ", "/b.swift", "/a.swift"]
+                )
+            ),
+            packSuggestions: [
+                ActionPackSuggestion(packId: "  b.pack  ", confidence: 0.5, bindings: [" z ": " 2 ", " a ": " 1 "]),
+                ActionPackSuggestion(packId: "a.pack", confidence: 0.8, bindings: [:])
+            ],
+            modelMeta: ScreenFlowModelMeta(model: " local ", promptVersion: " v1 ")
+        )
+
+        let output = try validator.validateAndCanonicalize(input)
+
+        #expect(output.entities.job?.company == "Acme")
+        #expect(output.entities.job?.skills == ["Swift", "XCTest"])
+        #expect(output.entities.job?.salaryRange?.min == 120000.13)
+        #expect(output.entities.job?.salaryRange?.max == 180000.26)
+        #expect(output.entities.job?.salaryRange?.currency == "USD")
+        #expect(output.entities.event?.dateTime == "2026-03-01T09:00:00Z")
+        #expect(output.entities.error?.filePaths == ["/a.swift", "/b.swift"])
+        #expect(output.packSuggestions.map(\.packId) == ["a.pack", "b.pack"])
+        #expect(output.packSuggestions[1].bindings["a"] == "1")
+        #expect(output.modelMeta.model == "local")
+    }
+
 }

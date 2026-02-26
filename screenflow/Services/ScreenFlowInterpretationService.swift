@@ -2,6 +2,7 @@ import Foundation
 
 enum ScreenFlowInterpretationServiceError: Error, Equatable {
     case invalidModelJSON
+    case invalidSpec
 }
 
 protocol ScreenFlowModelRunning: Sendable {
@@ -21,15 +22,18 @@ struct ScreenFlowInterpretationService {
     private let mapper: ScreenFlowPromptMappingService
     private let runtime: any ScreenFlowModelRunning
     private let artifactPersistence: LLMArtifactPersistenceService
+    private let validator: ScreenFlowSpecValidationService
 
     init(
         mapper: ScreenFlowPromptMappingService? = nil,
         runtime: (any ScreenFlowModelRunning)? = nil,
-        artifactPersistence: LLMArtifactPersistenceService? = nil
+        artifactPersistence: LLMArtifactPersistenceService? = nil,
+        validator: ScreenFlowSpecValidationService? = nil
     ) {
         self.mapper = mapper ?? ScreenFlowPromptMappingService()
         self.runtime = runtime ?? ScreenFlowModelRuntime()
         self.artifactPersistence = artifactPersistence ?? LLMArtifactPersistenceService()
+        self.validator = validator ?? ScreenFlowSpecValidationService()
     }
 
     func interpret(
@@ -44,11 +48,17 @@ struct ScreenFlowInterpretationService {
             throw ScreenFlowInterpretationServiceError.invalidModelJSON
         }
 
-        let spec: ScreenFlowSpecV1
+        let decodedSpec: ScreenFlowSpecV1
         do {
-            spec = try JSONDecoder().decode(ScreenFlowSpecV1.self, from: rawData)
+            decodedSpec = try JSONDecoder().decode(ScreenFlowSpecV1.self, from: rawData)
         } catch {
             throw ScreenFlowInterpretationServiceError.invalidModelJSON
+        }
+        let spec: ScreenFlowSpecV1
+        do {
+            spec = try validator.validateAndCanonicalize(decodedSpec)
+        } catch {
+            throw ScreenFlowInterpretationServiceError.invalidSpec
         }
 
         let llmResult = try artifactPersistence.persistArtifacts(
