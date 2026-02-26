@@ -403,4 +403,85 @@ struct screenflowTests {
         #expect(decoded == fakeSpec)
     }
 
+    @MainActor
+    @Test
+    func screenFlowSpecDecodesUnknownScenarioAsUnknown() async throws {
+        let json = """
+        {
+          "schemaVersion": "ScreenFlowSpec.v1",
+          "scenario": "travel_confirmation",
+          "scenarioConfidence": 0.42,
+          "entities": { "job": null, "event": null, "error": null },
+          "packSuggestions": [],
+          "modelMeta": { "model": "local", "promptVersion": "screenflow-spec-v1" }
+        }
+        """
+
+        let decoded = try JSONDecoder().decode(ScreenFlowSpecV1.self, from: Data(json.utf8))
+        #expect(decoded.scenario == .unknown)
+        #expect(decoded.schemaVersion == "ScreenFlowSpec.v1")
+    }
+
+    @MainActor
+    @Test
+    func promptMappingServiceBuildsDeterministicScreenFlowRequest() async throws {
+        let ocrSpec = OCRBlockSpecV1(
+            schemaVersion: "OCRBlockSpec.v1",
+            source: ScreenSource.photoPicker.rawValue,
+            processingVersion: "1.0.0",
+            languageHint: "en-US",
+            blocks: [
+                OCRTextBlock(
+                    text: "Senior iOS Engineer",
+                    bbox: OCRBoundingBox(x: 0.1, y: 0.2, width: 0.8, height: 0.1),
+                    pageSize: OCRPageSize(width: 1179, height: 2556),
+                    confidence: 0.98
+                )
+            ]
+        )
+
+        let mapper = ScreenFlowPromptMappingService()
+        let request = try mapper.makeRequest(from: ocrSpec)
+
+        #expect(request.schemaVersion == "ScreenFlowSpec.v1")
+        #expect(request.promptVersion == "screenflow-spec-v1")
+        #expect(request.userPrompt.contains("OCRBlockSpec.v1"))
+        #expect(request.userPrompt.contains("Senior iOS Engineer"))
+    }
+
+    @MainActor
+    @Test
+    func modelRuntimeFallsBackFromOnDeviceToSelfHostedWhenUnavailable() async throws {
+        let runtime = ScreenFlowModelRuntime(
+            configuration: ScreenFlowModelRuntimeConfiguration(
+                strategy: .onDevicePreferred,
+                onDeviceModel: "apple-on-device",
+                selfHostedModel: "llama3.1:8b",
+                selfHostedEndpoint: nil,
+                promptVersion: "screenflow-spec-v1"
+            )
+        )
+
+        let request = ScreenFlowModelRequest(
+            schemaVersion: "ScreenFlowSpec.v1",
+            promptVersion: "screenflow-spec-v1",
+            ocrSpec: OCRBlockSpecV1(
+                schemaVersion: "OCRBlockSpec.v1",
+                source: "photo_picker",
+                processingVersion: "1.0.0",
+                languageHint: "en-US",
+                blocks: []
+            ),
+            systemPrompt: "sys",
+            userPrompt: "usr"
+        )
+
+        do {
+            _ = try await runtime.run(request: request)
+            #expect(Bool(false))
+        } catch let error as ScreenFlowModelRuntimeError {
+            #expect(error == .selfHostedEndpointNotConfigured)
+        }
+    }
+
 }
