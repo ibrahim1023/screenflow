@@ -23,6 +23,15 @@ struct screenflowTests {
         }
     }
 
+    private struct FakeModelRuntime: ScreenFlowModelRunning {
+        let output: ScreenFlowModelOutput
+
+        func run(request: ScreenFlowModelRequest) async throws -> ScreenFlowModelOutput {
+            _ = request
+            return output
+        }
+    }
+
     @MainActor
     private func makeRepository() throws -> ScreenFlowRepository {
         let schema = Schema([
@@ -524,6 +533,80 @@ struct screenflowTests {
         let validatedData = try Data(contentsOf: URL(fileURLWithPath: result.validatedJSONPath))
         let decodedSpec = try JSONDecoder().decode(ScreenFlowSpecV1.self, from: validatedData)
         #expect(decodedSpec.scenario == .jobListing)
+    }
+
+    @MainActor
+    @Test
+    func interpretationServiceAppliesScenarioEntitiesAndPackSuggestionsFromModelOutput() async throws {
+        let repository = try makeRepository()
+        let createdAt = Date(timeIntervalSince1970: 1_700_100_000)
+
+        let screen = try repository.upsertScreenRecord(
+            ScreenRecordInput(
+                id: "screen-int-1",
+                createdAt: createdAt,
+                source: .photoPicker,
+                imagePath: "Screens/screen-int-1.original.img",
+                imageWidth: 1179,
+                imageHeight: 2556,
+                scenario: .unknown,
+                scenarioConfidence: 0.0,
+                processingVersion: "1.0.0",
+                lastOpenedAt: nil
+            )
+        )
+
+        let ocrSpec = OCRBlockSpecV1(
+            schemaVersion: "OCRBlockSpec.v1",
+            source: ScreenSource.photoPicker.rawValue,
+            processingVersion: "1.0.0",
+            languageHint: "en-US",
+            blocks: []
+        )
+
+        let rawJSON = """
+        {
+          "schemaVersion":"ScreenFlowSpec.v1",
+          "scenario":"job_listing",
+          "scenarioConfidence":0.93,
+          "entities":{
+            "job":{"company":"Acme","role":"iOS Engineer","location":"Remote","skills":["Swift"],"salaryRange":null,"link":"https://example.com/job"},
+            "event":null,
+            "error":null
+          },
+          "packSuggestions":[
+            {"packId":"job_listing.save_tracker","confidence":0.9,"bindings":{"company":"Acme","role":"iOS Engineer"}}
+          ],
+          "modelMeta":{"model":"llama3.1:8b","promptVersion":"screenflow-spec-v1"}
+        }
+        """
+
+        let service = ScreenFlowInterpretationService(
+            runtime: FakeModelRuntime(
+                output: ScreenFlowModelOutput(
+                    provider: .selfHostedOpenModel,
+                    model: "llama3.1:8b",
+                    rawResponseText: rawJSON
+                )
+            ),
+            artifactPersistence: LLMArtifactPersistenceService(
+                storagePathService: StoragePathService(rootFolderName: "ScreenFlowInterpretationTest-\(UUID().uuidString)")
+            )
+        )
+
+        let outcome = try await service.interpret(
+            ocrSpec: ocrSpec,
+            screen: screen,
+            repository: repository
+        )
+
+        #expect(outcome.screen.scenario == .jobListing)
+        #expect(outcome.screen.scenarioConfidence == 0.93)
+        #expect(outcome.spec.entities.job?.company == "Acme")
+        #expect(outcome.spec.packSuggestions.count == 1)
+        #expect(outcome.spec.packSuggestions[0].packId == "job_listing.save_tracker")
+        #expect(FileManager.default.fileExists(atPath: outcome.llmResult.rawResponseJSONPath))
+        #expect(FileManager.default.fileExists(atPath: outcome.llmResult.validatedJSONPath))
     }
 
 }
