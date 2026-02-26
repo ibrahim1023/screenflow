@@ -80,6 +80,7 @@ struct screenflowTests {
         #expect(result.validatedJSONPath == "LLM/llm-1.validated.json")
     }
 
+    @MainActor
     @Test func storagePathServiceBuildsAppSupportSubdirectoryPath() async throws {
         let service = StoragePathService(rootFolderName: "ScreenFlowTest")
         let path = try service.applicationSupportPath(for: .ocr)
@@ -88,6 +89,7 @@ struct screenflowTests {
         #expect(path.path.hasSuffix("/ScreenFlowTest/OCR"))
     }
 
+    @MainActor
     @Test func storagePathServiceThrowsWhenAppGroupUnavailable() async throws {
         let service = StoragePathService(appGroupIdentifier: "group.invalid.screenflow")
 
@@ -99,6 +101,7 @@ struct screenflowTests {
         }
     }
 
+    @MainActor
     @Test func stableScreenIdentifierIsDeterministicForSameInputs() async throws {
         let generator = StableScreenIdentifierGenerator()
         let normalizedBytes = Data([0xAA, 0xBB, 0xCC, 0xDD])
@@ -116,6 +119,7 @@ struct screenflowTests {
         #expect(first.count == 64)
     }
 
+    @MainActor
     @Test func stableScreenIdentifierChangesWhenProcessingVersionChanges() async throws {
         let generator = StableScreenIdentifierGenerator()
         let normalizedBytes = Data([0xAA, 0xBB, 0xCC, 0xDD])
@@ -132,6 +136,7 @@ struct screenflowTests {
         #expect(v1 != v2)
     }
 
+    @MainActor
     @Test func stableScreenIdentifierRejectsEmptyInputs() async throws {
         let generator = StableScreenIdentifierGenerator()
 
@@ -246,6 +251,66 @@ struct screenflowTests {
         #expect(try repository.llmResult(id: "llm-1")?.model == "local-model")
         #expect(try repository.extractionResult(id: "extract-1")?.schemaVersion == "screenflow-spec-v1")
         #expect(try repository.actionPackRun(id: "run-1")?.status == .success)
+    }
+
+    @MainActor
+    @Test func inAppPhotoImportServiceImportsImageAndPersistsScreenRecord() async throws {
+        let repository = try makeRepository()
+        let rootFolderName = "ScreenFlowImportTest-\(UUID().uuidString)"
+        let storage = StoragePathService(rootFolderName: rootFolderName)
+        let importer = InAppPhotoImportService(
+            processingVersion: "1.0.0",
+            storagePathService: storage
+        )
+
+        let pngData = try #require(Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zq4kAAAAASUVORK5CYII="))
+        let record = try importer.importPhotoData(
+            pngData,
+            source: .photoPicker,
+            repository: repository
+        )
+
+        #expect(record.imageWidth == 1)
+        #expect(record.imageHeight == 1)
+        #expect(record.source == .photoPicker)
+        #expect(FileManager.default.fileExists(atPath: record.imagePath))
+
+        let metadataPath = record.imagePath.replacingOccurrences(
+            of: ".original.img",
+            with: ".metadata.json"
+        )
+        let normalizedPath = record.imagePath.replacingOccurrences(
+            of: ".original.img",
+            with: ".normalized.png"
+        )
+
+        #expect(FileManager.default.fileExists(atPath: metadataPath))
+        #expect(FileManager.default.fileExists(atPath: normalizedPath))
+
+        let metadataData = try Data(contentsOf: URL(fileURLWithPath: metadataPath))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let metadata = try decoder.decode(ImportedImageMetadata.self, from: metadataData)
+
+        #expect(metadata.schemaVersion == "screenshot-artifact.v1")
+        #expect(metadata.screenId == record.id)
+        #expect(metadata.source == ScreenSource.photoPicker.rawValue)
+        #expect(metadata.originalImagePath == record.imagePath)
+        #expect(metadata.imageWidth == 1)
+        #expect(metadata.imageHeight == 1)
+    }
+
+    @MainActor
+    @Test func deterministicImageNormalizationIsStableForSameInput() async throws {
+        let normalizer = DeterministicImageNormalizationService()
+        let pngData = try #require(Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zq4kAAAAASUVORK5CYII="))
+
+        let first = try normalizer.normalizeForHashingAndOCR(pngData)
+        let second = try normalizer.normalizeForHashingAndOCR(pngData)
+
+        #expect(first.pngData == second.pngData)
+        #expect(first.width == second.width)
+        #expect(first.height == second.height)
     }
 
 }

@@ -15,6 +15,7 @@ enum StableScreenIdentifierError: Error, Equatable {
 
 struct StableScreenIdentifierGenerator {
     private static let serializationVersion = "stable-id-v1"
+    init() {}
 
     func makeIdentifier(
         normalizedImageBytes: Data,

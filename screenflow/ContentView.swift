@@ -6,11 +6,14 @@
 //
 
 import SwiftUI
+import PhotosUI
 import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ScreenRecord.createdAt, order: .reverse) private var screenRecords: [ScreenRecord]
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var importErrorMessage: String?
 
     var body: some View {
         NavigationSplitView {
@@ -39,27 +42,51 @@ struct ContentView: View {
                 }
 #endif
                 ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Sample Screen", systemImage: "plus")
+                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                        Label("Import Photo", systemImage: "photo.on.rectangle")
                     }
                 }
             }
         } detail: {
             Text("Select a screen")
         }
-    }
+        .onChange(of: selectedPhotoItem) { _, newItem in
+            guard let newItem else { return }
 
-    private func addItem() {
-        withAnimation {
-            let sampleRecord = ScreenRecord(
-                id: UUID().uuidString.lowercased(),
-                source: .photoPicker,
-                imagePath: "Screens/sample.jpg",
-                imageWidth: 1179,
-                imageHeight: 2556,
-                processingVersion: "1.0.0"
-            )
-            modelContext.insert(sampleRecord)
+            Task {
+                do {
+                    guard let data = try await newItem.loadTransferable(type: Data.self) else {
+                        importErrorMessage = "Could not load selected photo data."
+                        return
+                    }
+
+                    let repository = ScreenFlowRepository(modelContext: modelContext)
+                    let importer = InAppPhotoImportService()
+                    _ = try importer.importPhotoData(
+                        data,
+                        source: .photoPicker,
+                        repository: repository
+                    )
+                } catch {
+                    importErrorMessage = "Photo import failed: \(error.localizedDescription)"
+                }
+
+                selectedPhotoItem = nil
+            }
+        }
+        .alert("Import Error", isPresented: Binding(
+            get: { importErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    importErrorMessage = nil
+                }
+            }
+        )) {
+            Button("OK", role: .cancel) {
+                importErrorMessage = nil
+            }
+        } message: {
+            Text(importErrorMessage ?? "Unknown error")
         }
     }
 
