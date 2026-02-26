@@ -484,4 +484,46 @@ struct screenflowTests {
         }
     }
 
+    @MainActor
+    @Test
+    func llmArtifactPersistenceWritesFilesAndRepositoryRecord() async throws {
+        let repository = try makeRepository()
+        let rootFolderName = "ScreenFlowLLMTest-\(UUID().uuidString)"
+        let storage = StoragePathService(rootFolderName: rootFolderName)
+        let service = LLMArtifactPersistenceService(storagePathService: storage)
+
+        let validatedSpec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .jobListing,
+            scenarioConfidence: 0.91,
+            entities: .empty,
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "llama3.1:8b", promptVersion: "screenflow-spec-v1")
+        )
+
+        let rawResponse = """
+        {"schemaVersion":"ScreenFlowSpec.v1","scenario":"job_listing","scenarioConfidence":0.91,"entities":{"job":null,"event":null,"error":null},"packSuggestions":[],"modelMeta":{"model":"llama3.1:8b","promptVersion":"screenflow-spec-v1"}}
+        """
+
+        let result = try service.persistArtifacts(
+            screenID: "screen-1",
+            model: "llama3.1:8b",
+            promptVersion: "screenflow-spec-v1",
+            rawResponseText: rawResponse,
+            validatedSpec: validatedSpec,
+            repository: repository
+        )
+
+        #expect(FileManager.default.fileExists(atPath: result.rawResponseJSONPath))
+        #expect(FileManager.default.fileExists(atPath: result.validatedJSONPath))
+
+        let persisted = try repository.llmResult(id: result.id)
+        #expect(persisted?.rawResponseJSONPath == result.rawResponseJSONPath)
+        #expect(persisted?.validatedJSONPath == result.validatedJSONPath)
+
+        let validatedData = try Data(contentsOf: URL(fileURLWithPath: result.validatedJSONPath))
+        let decodedSpec = try JSONDecoder().decode(ScreenFlowSpecV1.self, from: validatedData)
+        #expect(decodedSpec.scenario == .jobListing)
+    }
+
 }
