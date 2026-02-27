@@ -838,7 +838,9 @@ struct screenflowTests {
         #expect(first.schemaVersion == "IntentGraph.v1")
         #expect(first.nodes.contains(where: { $0.id == "scenario:job_listing" }))
         #expect(first.nodes.contains(where: { $0.id == "entity:job" }))
-        #expect(first.nodes.contains(where: { $0.id == "field:entities.job.company" && $0.stringValue == "Acme" }))
+        let companyNode = first.nodes.first(where: { $0.id == "field:entities.job.company" })
+        #expect(companyNode != nil)
+        #expect(companyNode?.stringValue == "Acme")
         #expect(first.edges.contains(where: { $0.id == "edge:scenario:job_listing->entity:job" }))
     }
 
@@ -879,7 +881,9 @@ struct screenflowTests {
         #expect(graph.schemaVersion == "IntentGraph.v1")
         #expect(graph.nodes.contains(where: { $0.id == "scenario:event_flyer" }))
         #expect(graph.nodes.contains(where: { $0.id == "entity:event" }))
-        #expect(graph.nodes.contains(where: { $0.id == "field:entities.event.title" && $0.stringValue == "Swift Meetup" }))
+        let titleNode = graph.nodes.first(where: { $0.id == "field:entities.event.title" })
+        #expect(titleNode != nil)
+        #expect(titleNode?.stringValue == "Swift Meetup")
         #expect(graph.edges.contains(where: { $0.id == "edge:scenario:event_flyer->entity:event" }))
     }
 
