@@ -11,6 +11,10 @@ import SwiftData
 @testable import screenflow
 
 struct screenflowTests {
+    private enum TestRuntimeError: Error {
+        case exhaustedOutputs
+    }
+
     private struct FakeOCRExtractor: OCRExtracting {
         let spec: OCRBlockSpecV1
 
@@ -29,6 +33,28 @@ struct screenflowTests {
         func run(request: ScreenFlowModelRequest) async throws -> ScreenFlowModelOutput {
             _ = request
             return output
+        }
+    }
+
+    private actor FakeSequencedModelRuntime: ScreenFlowModelRunning {
+        private var outputs: [ScreenFlowModelOutput]
+        private(set) var callCount: Int = 0
+
+        init(outputs: [ScreenFlowModelOutput]) {
+            self.outputs = outputs
+        }
+
+        func run(request: ScreenFlowModelRequest) async throws -> ScreenFlowModelOutput {
+            _ = request
+            callCount += 1
+            guard !outputs.isEmpty else {
+                throw TestRuntimeError.exhaustedOutputs
+            }
+            return outputs.removeFirst()
+        }
+
+        func currentCallCount() -> Int {
+            callCount
         }
     }
 
@@ -607,6 +633,132 @@ struct screenflowTests {
         #expect(outcome.spec.packSuggestions[0].packId == "job_listing.save_tracker")
         #expect(FileManager.default.fileExists(atPath: outcome.llmResult.rawResponseJSONPath))
         #expect(FileManager.default.fileExists(atPath: outcome.llmResult.validatedJSONPath))
+        #expect(FileManager.default.fileExists(atPath: outcome.extractionResult.entitiesJSONPath))
+        #expect(FileManager.default.fileExists(atPath: outcome.extractionResult.intentGraphJSONPath))
+    }
+
+    @MainActor
+    @Test
+    func interpretationServiceAttemptsSingleRepairPassForInvalidModelOutput() async throws {
+        let repository = try makeRepository()
+        let screen = try repository.upsertScreenRecord(
+            ScreenRecordInput(
+                id: "screen-int-repair",
+                createdAt: Date(timeIntervalSince1970: 1_700_100_100),
+                source: .photoPicker,
+                imagePath: "Screens/screen-int-repair.original.img",
+                imageWidth: 1179,
+                imageHeight: 2556,
+                scenario: .unknown,
+                scenarioConfidence: 0.0,
+                processingVersion: "1.0.0",
+                lastOpenedAt: nil
+            )
+        )
+        let ocrSpec = OCRBlockSpecV1(
+            schemaVersion: "OCRBlockSpec.v1",
+            source: ScreenSource.photoPicker.rawValue,
+            processingVersion: "1.0.0",
+            languageHint: "en-US",
+            blocks: [
+                OCRTextBlock(
+                    text: "Job opening at Acme",
+                    bbox: OCRBoundingBox(x: 0, y: 0, width: 1, height: 0.2),
+                    pageSize: OCRPageSize(width: 1179, height: 2556),
+                    confidence: 0.9
+                )
+            ]
+        )
+
+        let invalidRaw = "not valid json"
+        let repairedRaw = """
+        {
+          "schemaVersion":"ScreenFlowSpec.v1",
+          "scenario":"job_listing",
+          "scenarioConfidence":0.61,
+          "entities":{"job":null,"event":null,"error":null},
+          "packSuggestions":[],
+          "modelMeta":{"model":"llama3.1:8b","promptVersion":"screenflow-spec-v1"}
+        }
+        """
+        let runtime = FakeSequencedModelRuntime(
+            outputs: [
+                ScreenFlowModelOutput(provider: .selfHostedOpenModel, model: "llama3.1:8b", rawResponseText: invalidRaw),
+                ScreenFlowModelOutput(provider: .selfHostedOpenModel, model: "llama3.1:8b", rawResponseText: repairedRaw),
+            ]
+        )
+
+        let service = ScreenFlowInterpretationService(
+            runtime: runtime,
+            artifactPersistence: LLMArtifactPersistenceService(
+                storagePathService: StoragePathService(rootFolderName: "ScreenFlowRepairPassTest-\(UUID().uuidString)")
+            ),
+            extractionPersistence: ExtractionArtifactPersistenceService(
+                storagePathService: StoragePathService(rootFolderName: "ScreenFlowRepairPassTest-\(UUID().uuidString)")
+            )
+        )
+
+        let outcome = try await service.interpret(ocrSpec: ocrSpec, screen: screen, repository: repository)
+        #expect(outcome.spec.scenario == .jobListing)
+        #expect(outcome.spec.scenarioConfidence == 0.61)
+        #expect(await runtime.currentCallCount() == 2)
+    }
+
+    @MainActor
+    @Test
+    func interpretationServiceFallsBackToHeuristicWhenRepairFails() async throws {
+        let repository = try makeRepository()
+        let screen = try repository.upsertScreenRecord(
+            ScreenRecordInput(
+                id: "screen-int-fallback",
+                createdAt: Date(timeIntervalSince1970: 1_700_100_200),
+                source: .photoPicker,
+                imagePath: "Screens/screen-int-fallback.original.img",
+                imageWidth: 1179,
+                imageHeight: 2556,
+                scenario: .unknown,
+                scenarioConfidence: 0.0,
+                processingVersion: "1.0.0",
+                lastOpenedAt: nil
+            )
+        )
+        let ocrSpec = OCRBlockSpecV1(
+            schemaVersion: "OCRBlockSpec.v1",
+            source: ScreenSource.photoPicker.rawValue,
+            processingVersion: "1.0.0",
+            languageHint: "en-US",
+            blocks: [
+                OCRTextBlock(
+                    text: "Fatal error in Build.swift",
+                    bbox: OCRBoundingBox(x: 0, y: 0, width: 1, height: 0.2),
+                    pageSize: OCRPageSize(width: 1179, height: 2556),
+                    confidence: 0.9
+                )
+            ]
+        )
+
+        let runtime = FakeSequencedModelRuntime(
+            outputs: [
+                ScreenFlowModelOutput(provider: .selfHostedOpenModel, model: "llama3.1:8b", rawResponseText: "bad json"),
+                ScreenFlowModelOutput(provider: .selfHostedOpenModel, model: "llama3.1:8b", rawResponseText: "{still:bad}"),
+            ]
+        )
+        let storage = StoragePathService(rootFolderName: "ScreenFlowFallbackTest-\(UUID().uuidString)")
+        let service = ScreenFlowInterpretationService(
+            runtime: runtime,
+            artifactPersistence: LLMArtifactPersistenceService(storagePathService: storage),
+            extractionPersistence: ExtractionArtifactPersistenceService(storagePathService: storage)
+        )
+
+        let outcome = try await service.interpret(ocrSpec: ocrSpec, screen: screen, repository: repository)
+
+        #expect(outcome.spec.modelMeta.model == "screenflow-heuristic-fallback-v1")
+        #expect(outcome.spec.scenario == .errorLog)
+        #expect(outcome.spec.packSuggestions.first?.packId == "error_log.generate_issue_template")
+        #expect(outcome.spec.entities.error?.filePaths == ["Build.swift"])
+        #expect(await runtime.currentCallCount() == 2)
+        #expect(FileManager.default.fileExists(atPath: outcome.extractionResult.entitiesJSONPath))
+        #expect(FileManager.default.fileExists(atPath: outcome.extractionResult.intentGraphJSONPath))
     }
 
     @MainActor
