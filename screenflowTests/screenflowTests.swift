@@ -979,4 +979,163 @@ struct screenflowTests {
         #expect(output.modelMeta.model == "local")
     }
 
+    @MainActor
+    @Test
+    func actionPackSelectionServicePrioritizesSuggestedPacksByConfidence() async throws {
+        let service = ActionPackSelectionService()
+        let spec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .jobListing,
+            scenarioConfidence: 0.9,
+            entities: ScreenFlowEntities(
+                job: JobEntities(
+                    company: "Acme",
+                    role: "iOS Engineer",
+                    location: "Remote",
+                    skills: ["Swift"],
+                    salaryRange: nil,
+                    link: nil
+                ),
+                event: nil,
+                error: nil
+            ),
+            packSuggestions: [
+                ActionPackSuggestion(packId: "job_listing.save_tracker", confidence: 0.2, bindings: [:]),
+                ActionPackSuggestion(packId: "job_listing.draft_application_email", confidence: 0.9, bindings: [:]),
+            ],
+            modelMeta: ScreenFlowModelMeta(model: "m", promptVersion: "p")
+        )
+
+        let selected = service.selectPacks(from: spec)
+        #expect(selected.count >= 2)
+        #expect(selected[0].pack.id == "job_listing.draft_application_email")
+        #expect(selected[1].pack.id == "job_listing.save_tracker")
+    }
+
+    @MainActor
+    @Test
+    func actionPackValidationEnforcesRequiredBindingsAndTypes() async throws {
+        let validation = ActionPackValidationService()
+        let pack = ActionPackDefinition(
+            id: "job_listing.test",
+            version: "1.0.0",
+            scenario: .jobListing,
+            requiredBindings: [
+                ActionPackBindingRequirement(key: "job.company", valueType: .string),
+                ActionPackBindingRequirement(key: "job.salaryRange.min", valueType: .number),
+            ],
+            optionalBindingKeys: [],
+            preconditions: [],
+            steps: []
+        )
+
+        let validSpec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .jobListing,
+            scenarioConfidence: 0.9,
+            entities: ScreenFlowEntities(
+                job: JobEntities(
+                    company: "Acme",
+                    role: "Engineer",
+                    location: nil,
+                    skills: nil,
+                    salaryRange: SalaryRange(min: 120000, max: nil, currency: "USD"),
+                    link: nil
+                ),
+                event: nil,
+                error: nil
+            ),
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "m", promptVersion: "p")
+        )
+
+        let valid = try validation.validate(
+            selection: ActionPackSelection(pack: pack, suggestedBindings: [:]),
+            spec: validSpec
+        )
+        #expect(valid.validatedBindings["job.company"] == "Acme")
+        #expect(valid.validatedBindings["job.salaryRange.min"] == "120000.0")
+
+        let invalid = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .jobListing,
+            scenarioConfidence: 0.9,
+            entities: ScreenFlowEntities(
+                job: JobEntities(
+                    company: nil,
+                    role: "Engineer",
+                    location: nil,
+                    skills: nil,
+                    salaryRange: nil,
+                    link: nil
+                ),
+                event: nil,
+                error: nil
+            ),
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "m", promptVersion: "p")
+        )
+
+        do {
+            _ = try validation.validate(
+                selection: ActionPackSelection(pack: pack, suggestedBindings: [:]),
+                spec: invalid
+            )
+            #expect(Bool(false))
+        } catch let error as ActionPackValidationError {
+            #expect(error == .missingRequiredBinding("job.company"))
+        }
+    }
+
+    @MainActor
+    @Test
+    func actionPackExecutionPersistsInputTraceAndRunRecord() async throws {
+        let repository = try makeRepository()
+        let storage = StoragePathService(rootFolderName: "ScreenFlowActionRunTest-\(UUID().uuidString)")
+        let execution = ActionPackExecutionService(storagePathService: storage)
+        let registry = ActionPackRegistryService()
+
+        let pack = try #require(registry.allPacks().first(where: { $0.id == "error_log.generate_issue_template" }))
+        let spec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .errorLog,
+            scenarioConfidence: 0.9,
+            entities: ScreenFlowEntities(
+                job: nil,
+                event: nil,
+                error: ErrorEntities(
+                    errorType: "fatal",
+                    message: "Crash in Build.swift",
+                    stackTrace: "line1\nline2",
+                    toolName: "xcode",
+                    filePaths: ["Build.swift"]
+                )
+            ),
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "m", promptVersion: "p")
+        )
+
+        let run = try execution.execute(
+            selection: ActionPackSelection(pack: pack, suggestedBindings: [:]),
+            spec: spec,
+            screenID: "screen-1",
+            repository: repository,
+            createdAt: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+
+        #expect(run.status == .success)
+        #expect(FileManager.default.fileExists(atPath: run.inputParamsJSONPath))
+        #expect(FileManager.default.fileExists(atPath: run.traceJSONPath))
+
+        let traceData = try Data(contentsOf: URL(fileURLWithPath: run.traceJSONPath))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let trace = try decoder.decode(ActionPackExecutionTraceV1.self, from: traceData)
+        #expect(trace.schemaVersion == "action-pack-trace.v1")
+        #expect(trace.packID == "error_log.generate_issue_template")
+        #expect(trace.steps.count == 1)
+        #expect(trace.steps[0].status == .success)
+        #expect(try repository.actionPackRun(id: run.id)?.packId == "error_log.generate_issue_template")
+    }
+
 }
