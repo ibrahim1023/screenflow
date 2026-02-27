@@ -11,6 +11,7 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \ScreenRecord.createdAt, order: .reverse) private var screenRecords: [ScreenRecord]
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var importErrorMessage: String?
@@ -79,6 +80,15 @@ struct ContentView: View {
                 selectedPhotoItem = nil
             }
         }
+        .task {
+            await syncPendingShareImports()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            Task {
+                await syncPendingShareImports()
+            }
+        }
         .alert("Import Error", isPresented: Binding(
             get: { importErrorMessage != nil },
             set: { isPresented in
@@ -92,6 +102,17 @@ struct ContentView: View {
             }
         } message: {
             Text(importErrorMessage ?? "Unknown error")
+        }
+    }
+
+    @MainActor
+    private func syncPendingShareImports() async {
+        do {
+            let repository = ScreenFlowRepository(modelContext: modelContext)
+            try StorageBootstrapService().prepareRequiredDirectories()
+            _ = try ShareSheetImportIngestionService().ingestPendingSharedScreens(repository: repository)
+        } catch {
+            importErrorMessage = "Share import sync failed: \(error.localizedDescription)"
         }
     }
 

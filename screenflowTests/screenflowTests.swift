@@ -137,6 +137,20 @@ struct screenflowTests {
     }
 
     @MainActor
+    @Test func storageBootstrapServiceCreatesExpectedApplicationSupportDirectories() async throws {
+        let rootFolderName = "ScreenFlowBootstrapTest-\(UUID().uuidString)"
+        let storage = StoragePathService(rootFolderName: rootFolderName)
+        let bootstrap = StorageBootstrapService(storagePathService: storage)
+
+        try bootstrap.prepareRequiredDirectories()
+
+        for subdirectory in StorageSubdirectory.allCases {
+            let path = try storage.applicationSupportPath(for: subdirectory)
+            #expect(FileManager.default.fileExists(atPath: path.path))
+        }
+    }
+
+    @MainActor
     @Test func storagePathServiceThrowsWhenAppGroupUnavailable() async throws {
         let service = StoragePathService(appGroupIdentifier: "group.invalid.screenflow")
 
@@ -345,6 +359,38 @@ struct screenflowTests {
         #expect(metadata.originalImagePath == record.imagePath)
         #expect(metadata.imageWidth == 1)
         #expect(metadata.imageHeight == 1)
+    }
+
+    @MainActor
+    @Test func shareSheetIngestionImportsPendingAppGroupImagesAndCleansPendingFiles() async throws {
+        let repository = try makeRepository()
+        let rootFolderName = "ScreenFlowShareIngestTest-\(UUID().uuidString)"
+        let storage = StoragePathService(rootFolderName: rootFolderName)
+        let ingestion = ShareSheetImportIngestionService(storagePathService: storage)
+
+        let pendingDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ScreenFlowPending-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: pendingDirectory, withIntermediateDirectories: true)
+
+        let pendingImageURL = pendingDirectory.appendingPathComponent("pending-1.original.img", isDirectory: false)
+        let pendingMetadataURL = pendingDirectory.appendingPathComponent("pending-1.metadata.json", isDirectory: false)
+        let pngData = try #require(Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zq4kAAAAASUVORK5CYII="))
+        try pngData.write(to: pendingImageURL, options: .atomic)
+        try Data("{\"schemaVersion\":\"screenshot-artifact.v1\"}".utf8).write(to: pendingMetadataURL, options: .atomic)
+
+        let importedCount = try ingestion.ingestPendingSharedScreens(
+            from: pendingDirectory,
+            repository: repository
+        )
+
+        #expect(importedCount == 1)
+        #expect(!FileManager.default.fileExists(atPath: pendingImageURL.path))
+        #expect(!FileManager.default.fileExists(atPath: pendingMetadataURL.path))
+
+        let records = try repository.listScreenRecords()
+        #expect(records.count == 1)
+        #expect(records[0].source == .shareSheet)
+        #expect(FileManager.default.fileExists(atPath: records[0].imagePath))
     }
 
     @MainActor
