@@ -763,6 +763,82 @@ struct screenflowTests {
 
     @MainActor
     @Test
+    func intentGraphServiceBuildsDeterministicGraphFromScenarioAndEntities() async throws {
+        let service = ScreenFlowIntentGraphService()
+        let spec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .jobListing,
+            scenarioConfidence: 0.93,
+            entities: ScreenFlowEntities(
+                job: JobEntities(
+                    company: "Acme",
+                    role: "iOS Engineer",
+                    location: "Remote",
+                    skills: ["Swift", "XCTest"],
+                    salaryRange: SalaryRange(min: 120000.0, max: 180000.0, currency: "USD"),
+                    link: "https://example.com/job"
+                ),
+                event: nil,
+                error: nil
+            ),
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "local-model", promptVersion: "screenflow-spec-v1")
+        )
+
+        let first = service.buildGraph(from: spec)
+        let second = service.buildGraph(from: spec)
+
+        #expect(first == second)
+        #expect(first.schemaVersion == "IntentGraph.v1")
+        #expect(first.nodes.contains(where: { $0.id == "scenario:job_listing" }))
+        #expect(first.nodes.contains(where: { $0.id == "entity:job" }))
+        #expect(first.nodes.contains(where: { $0.id == "field:entities.job.company" && $0.stringValue == "Acme" }))
+        #expect(first.edges.contains(where: { $0.id == "edge:scenario:job_listing->entity:job" }))
+    }
+
+    @MainActor
+    @Test
+    func extractionArtifactPersistenceWritesBuiltIntentGraphJSON() async throws {
+        let repository = try makeRepository()
+        let storage = StoragePathService(rootFolderName: "ScreenFlowIntentGraphPersistenceTest-\(UUID().uuidString)")
+        let service = ExtractionArtifactPersistenceService(storagePathService: storage)
+        let spec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .eventFlyer,
+            scenarioConfidence: 0.82,
+            entities: ScreenFlowEntities(
+                job: nil,
+                event: EventEntities(
+                    title: "Swift Meetup",
+                    dateTime: "2026-03-01T09:00:00Z",
+                    venue: "HQ",
+                    address: "123 Street",
+                    link: "https://example.com/event"
+                ),
+                error: nil
+            ),
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "local-model", promptVersion: "screenflow-spec-v1")
+        )
+
+        let result = try service.persistCanonicalExtraction(
+            screenID: "screen-intent-1",
+            spec: spec,
+            repository: repository
+        )
+
+        let graphData = try Data(contentsOf: URL(fileURLWithPath: result.intentGraphJSONPath))
+        let graph = try JSONDecoder().decode(IntentGraphV1.self, from: graphData)
+
+        #expect(graph.schemaVersion == "IntentGraph.v1")
+        #expect(graph.nodes.contains(where: { $0.id == "scenario:event_flyer" }))
+        #expect(graph.nodes.contains(where: { $0.id == "entity:event" }))
+        #expect(graph.nodes.contains(where: { $0.id == "field:entities.event.title" && $0.stringValue == "Swift Meetup" }))
+        #expect(graph.edges.contains(where: { $0.id == "edge:scenario:event_flyer->entity:event" }))
+    }
+
+    @MainActor
+    @Test
     func screenFlowSpecValidationRejectsInvalidSchemaAndConfidence() async throws {
         let validator = ScreenFlowSpecValidationService()
 

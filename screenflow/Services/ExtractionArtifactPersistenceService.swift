@@ -4,9 +4,14 @@ import Foundation
 @MainActor
 struct ExtractionArtifactPersistenceService {
     private let storagePathService: StoragePathService
+    private let intentGraphService: ScreenFlowIntentGraphService
 
-    init(storagePathService: StoragePathService? = nil) {
+    init(
+        storagePathService: StoragePathService? = nil,
+        intentGraphService: ScreenFlowIntentGraphService? = nil
+    ) {
         self.storagePathService = storagePathService ?? StoragePathService()
+        self.intentGraphService = intentGraphService ?? ScreenFlowIntentGraphService()
     }
 
     @discardableResult
@@ -22,6 +27,8 @@ struct ExtractionArtifactPersistenceService {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         let canonicalData = try encoder.encode(spec)
+        let intentGraph = intentGraphService.buildGraph(from: spec)
+        let graphData = try encoder.encode(intentGraph)
 
         let extractionID = makeExtractionID(
             screenID: screenID,
@@ -33,8 +40,7 @@ struct ExtractionArtifactPersistenceService {
         let graphURL = extractedDirectory.appendingPathComponent("\(extractionID).graph.json", isDirectory: false)
 
         try canonicalData.write(to: entitiesURL, options: .atomic)
-        try Data("{\"schemaVersion\":\"IntentGraph.v1\",\"nodes\":[],\"edges\":[]}".utf8)
-            .write(to: graphURL, options: .atomic)
+        try graphData.write(to: graphURL, options: .atomic)
 
         return try repository.upsertExtractionResult(
             ExtractionResultInput(
