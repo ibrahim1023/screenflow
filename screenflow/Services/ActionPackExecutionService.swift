@@ -5,6 +5,22 @@ enum ActionPackExecutionError: Error, Equatable {
     case stepTemplateMissing(String)
 }
 
+private struct JobTrackerSalaryRange: Codable, Equatable {
+    let min: Double?
+    let max: Double?
+    let currency: String?
+}
+
+private struct JobTrackerEntryV1: Codable, Equatable {
+    let schemaVersion: String
+    let company: String
+    let role: String
+    let location: String?
+    let link: String?
+    let skills: [String]
+    let salaryRange: JobTrackerSalaryRange?
+}
+
 @MainActor
 struct ActionPackExecutionService {
     private let storagePathService: StoragePathService
@@ -131,7 +147,41 @@ struct ActionPackExecutionService {
         case .exportBindingsJSON:
             try encoder.encode(bindings).write(to: outputURL, options: .atomic)
             return outputURL.path
+
+        case .exportJobTrackerJSON:
+            let entry = buildJobTrackerEntry(from: bindings)
+            try encoder.encode(entry).write(to: outputURL, options: .atomic)
+            return outputURL.path
         }
+    }
+
+    private func buildJobTrackerEntry(from bindings: [String: String]) -> JobTrackerEntryV1 {
+        let company = normalizedOrFallback(bindings["job.company"], fallback: "unknown")
+        let role = normalizedOrFallback(bindings["job.role"], fallback: "unknown")
+        let location = normalizedOptional(bindings["job.location"])
+        let link = normalizedOptional(bindings["job.link"])
+        let skills = parseList(bindings["job.skills"])
+
+        let minSalary = bindings["job.salaryRange.min"].flatMap(Double.init)
+        let maxSalary = bindings["job.salaryRange.max"].flatMap(Double.init)
+        let currency = normalizedOptional(bindings["job.salaryRange.currency"])
+
+        let salaryRange: JobTrackerSalaryRange?
+        if minSalary != nil || maxSalary != nil || currency != nil {
+            salaryRange = JobTrackerSalaryRange(min: minSalary, max: maxSalary, currency: currency)
+        } else {
+            salaryRange = nil
+        }
+
+        return JobTrackerEntryV1(
+            schemaVersion: "job-tracker-entry.v1",
+            company: company,
+            role: role,
+            location: location,
+            link: link,
+            skills: skills,
+            salaryRange: salaryRange
+        )
     }
 
     private func renderTemplate(_ template: String, bindings: [String: String]) -> String {
@@ -140,6 +190,30 @@ struct ActionPackExecutionService {
             rendered = rendered.replacingOccurrences(of: "{{\(key)}}", with: bindings[key] ?? "")
         }
         return rendered
+    }
+
+    private func normalizedOptional(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let cleaned = value
+            .split(whereSeparator: { $0.isWhitespace || $0.isNewline })
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned.isEmpty ? nil : cleaned
+    }
+
+    private func normalizedOrFallback(_ value: String?, fallback: String) -> String {
+        normalizedOptional(value) ?? fallback
+    }
+
+    private func parseList(_ value: String?) -> [String] {
+        guard let normalized = normalizedOptional(value) else { return [] }
+        return normalized
+            .split(separator: ",")
+            .map {
+                String($0)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            .filter { !$0.isEmpty }
     }
 
     private func makeRunID(

@@ -10,6 +10,22 @@ import Testing
 import SwiftData
 @testable import screenflow
 
+private struct TestJobTrackerSalaryRange: Codable, Equatable {
+    let min: Double?
+    let max: Double?
+    let currency: String?
+}
+
+private struct TestJobTrackerEntryV1: Codable, Equatable {
+    let schemaVersion: String
+    let company: String
+    let role: String
+    let location: String?
+    let link: String?
+    let skills: [String]
+    let salaryRange: TestJobTrackerSalaryRange?
+}
+
 struct screenflowTests {
     private enum TestRuntimeError: Error {
         case exhaustedOutputs
@@ -1136,6 +1152,64 @@ struct screenflowTests {
         #expect(trace.steps.count == 1)
         #expect(trace.steps[0].status == .success)
         #expect(try repository.actionPackRun(id: run.id)?.packId == "error_log.generate_issue_template")
+    }
+
+    @MainActor
+    @Test
+    func jobListingSaveTrackerExportsDeterministicStructuredJSON() async throws {
+        let repository = try makeRepository()
+        let storage = StoragePathService(rootFolderName: "ScreenFlowJobTrackerExportTest-\(UUID().uuidString)")
+        let execution = ActionPackExecutionService(storagePathService: storage)
+        let registry = ActionPackRegistryService()
+
+        let pack = try #require(registry.allPacks().first(where: { $0.id == "job_listing.save_tracker" }))
+        let spec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .jobListing,
+            scenarioConfidence: 0.9,
+            entities: ScreenFlowEntities(
+                job: JobEntities(
+                    company: "Acme",
+                    role: "Senior iOS Engineer",
+                    location: "Remote",
+                    skills: ["Swift", "SwiftUI"],
+                    salaryRange: SalaryRange(min: 180000, max: 220000, currency: "USD"),
+                    link: "https://example.com/jobs/ios"
+                ),
+                event: nil,
+                error: nil
+            ),
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "m", promptVersion: "p")
+        )
+
+        let run = try execution.execute(
+            selection: ActionPackSelection(pack: pack, suggestedBindings: [:]),
+            spec: spec,
+            screenID: "screen-job-1",
+            repository: repository,
+            createdAt: Date(timeIntervalSince1970: 1_700_000_010)
+        )
+
+        let traceData = try Data(contentsOf: URL(fileURLWithPath: run.traceJSONPath))
+        let traceDecoder = JSONDecoder()
+        traceDecoder.dateDecodingStrategy = .iso8601
+        let trace = try traceDecoder.decode(ActionPackExecutionTraceV1.self, from: traceData)
+
+        #expect(trace.status == .success)
+        let stepOutput = try #require(trace.steps.first?.outputPath)
+        let outputData = try Data(contentsOf: URL(fileURLWithPath: stepOutput))
+        let output = try JSONDecoder().decode(TestJobTrackerEntryV1.self, from: outputData)
+
+        #expect(output.schemaVersion == "job-tracker-entry.v1")
+        #expect(output.company == "Acme")
+        #expect(output.role == "Senior iOS Engineer")
+        #expect(output.location == "Remote")
+        #expect(output.link == "https://example.com/jobs/ios")
+        #expect(output.skills == ["Swift", "SwiftUI"])
+        #expect(output.salaryRange?.min == 180000)
+        #expect(output.salaryRange?.max == 220000)
+        #expect(output.salaryRange?.currency == "USD")
     }
 
 }

@@ -10,12 +10,12 @@ struct ActionPackRegistryService {
                 ActionPackBindingRequirement(key: "job.company", valueType: .string),
                 ActionPackBindingRequirement(key: "job.role", valueType: .string),
             ],
-            optionalBindingKeys: ["job.location", "job.link", "job.salaryRange.min", "job.salaryRange.max", "job.salaryRange.currency"],
+            optionalBindingKeys: ["job.location", "job.link", "job.skills", "job.salaryRange.min", "job.salaryRange.max", "job.salaryRange.currency"],
             preconditions: [],
             steps: [
                 ActionPackStepDefinition(
                     id: "save-job-json",
-                    type: .exportBindingsJSON,
+                    type: .exportJobTrackerJSON,
                     outputFileName: "job-tracker.json",
                     template: nil
                 )

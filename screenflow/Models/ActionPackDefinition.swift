@@ -35,6 +35,7 @@ struct ActionPackStepDefinition: Codable, Equatable, Sendable {
 enum ActionPackStepType: String, Codable, Equatable, Sendable {
     case renderTextTemplate = "render_text_template"
     case exportBindingsJSON = "export_bindings_json"
+    case exportJobTrackerJSON = "export_job_tracker_json"
 }
 
 struct ActionPackSelection: Equatable, Sendable {
