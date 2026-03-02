@@ -38,12 +38,19 @@ struct ActionPackRegistryService {
                     type: .renderTextTemplate,
                     outputFileName: "application-email-outline.txt",
                     template: """
-                    Application Draft
-                    Company: {{job.company}}
-                    Role: {{job.role}}
-                    Location: {{job.location}}
-                    Skills: {{job.skills}}
-                    Link: {{job.link}}
+                    Application Email Outline
+                    Subject: Application for {{job.role}} at {{job.company}}
+
+                    Intro:
+                    - State intent to apply for {{job.role}}.
+                    - Mention interest in {{job.company}}.
+
+                    Fit Summary:
+                    - Relevant skills: {{job.skills}}
+                    - Preferred location: {{job.location}}
+
+                    Reference:
+                    - Job link: {{job.link}}
                     """
                 )
             ]

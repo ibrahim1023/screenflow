@@ -1212,4 +1212,57 @@ struct screenflowTests {
         #expect(output.salaryRange?.currency == "USD")
     }
 
+    @MainActor
+    @Test
+    func jobListingDraftApplicationEmailExportsDeterministicOutline() async throws {
+        let repository = try makeRepository()
+        let storage = StoragePathService(rootFolderName: "ScreenFlowJobDraftEmailTest-\(UUID().uuidString)")
+        let execution = ActionPackExecutionService(storagePathService: storage)
+        let registry = ActionPackRegistryService()
+
+        let pack = try #require(registry.allPacks().first(where: { $0.id == "job_listing.draft_application_email" }))
+        let spec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .jobListing,
+            scenarioConfidence: 0.9,
+            entities: ScreenFlowEntities(
+                job: JobEntities(
+                    company: "Acme",
+                    role: "Senior iOS Engineer",
+                    location: "Remote",
+                    skills: ["Swift", "SwiftUI"],
+                    salaryRange: nil,
+                    link: "https://example.com/jobs/ios"
+                ),
+                event: nil,
+                error: nil
+            ),
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "m", promptVersion: "p")
+        )
+
+        let run = try execution.execute(
+            selection: ActionPackSelection(pack: pack, suggestedBindings: [:]),
+            spec: spec,
+            screenID: "screen-job-2",
+            repository: repository,
+            createdAt: Date(timeIntervalSince1970: 1_700_000_020)
+        )
+
+        let traceData = try Data(contentsOf: URL(fileURLWithPath: run.traceJSONPath))
+        let traceDecoder = JSONDecoder()
+        traceDecoder.dateDecodingStrategy = .iso8601
+        let trace = try traceDecoder.decode(ActionPackExecutionTraceV1.self, from: traceData)
+
+        #expect(trace.status == .success)
+        let stepOutput = try #require(trace.steps.first?.outputPath)
+        let outline = try String(contentsOfFile: stepOutput, encoding: .utf8)
+
+        #expect(outline.contains("Application Email Outline"))
+        #expect(outline.contains("Subject: Application for Senior iOS Engineer at Acme"))
+        #expect(outline.contains("Relevant skills: Swift, SwiftUI"))
+        #expect(outline.contains("Preferred location: Remote"))
+        #expect(outline.contains("Job link: https://example.com/jobs/ios"))
+    }
+
 }
