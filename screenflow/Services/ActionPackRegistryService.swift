@@ -18,6 +18,13 @@ struct ActionPackRegistryService {
                     type: .exportJobTrackerJSON,
                     outputFileName: "job-tracker.json",
                     template: nil
+                ),
+                ActionPackStepDefinition(
+                    id: "export-job-json-file",
+                    type: .exportFile,
+                    outputFileName: "job-tracker-export.json",
+                    template: nil,
+                    sourceStepID: "save-job-json"
                 )
             ]
         )
@@ -72,6 +79,12 @@ struct ActionPackRegistryService {
                     type: .createCalendarEvent,
                     outputFileName: "calendar-event-result.json",
                     template: nil
+                ),
+                ActionPackStepDefinition(
+                    id: "open-event-link",
+                    type: .openURL,
+                    outputFileName: "open-url-result.json",
+                    template: "{{event.link}}"
                 )
             ]
         )
@@ -95,6 +108,13 @@ struct ActionPackRegistryService {
                     Venue: {{event.venue}}
                     Address: {{event.address}}
                     """
+                ),
+                ActionPackStepDefinition(
+                    id: "copy-share-card-to-clipboard",
+                    type: .copyTextToClipboard,
+                    outputFileName: "clipboard-result.json",
+                    template: nil,
+                    sourceStepID: "render-share-card"
                 )
             ]
         )
@@ -127,6 +147,13 @@ struct ActionPackRegistryService {
                     ## Stack Trace
                     {{error.stackTrace}}
                     """
+                ),
+                ActionPackStepDefinition(
+                    id: "export-issue-template-file",
+                    type: .exportFile,
+                    outputFileName: "issue-template-export.md",
+                    template: nil,
+                    sourceStepID: "render-issue-template"
                 )
             ]
         )

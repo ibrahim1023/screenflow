@@ -4,6 +4,7 @@ import Foundation
 enum ActionPackExecutionError: Error, Equatable {
     case stepTemplateMissing(String)
     case invalidEventDateTime(String)
+    case missingSourceStepOutput(String)
 }
 
 private struct JobTrackerSalaryRange: Codable, Equatable {
@@ -33,20 +34,38 @@ private struct CalendarEventResultV1: Codable, Equatable {
     let createdEventIdentifier: String?
 }
 
+private struct ClipboardWriteResultV1: Codable, Equatable {
+    let schemaVersion: String
+    let text: String
+    let didCopy: Bool
+}
+
+private struct URLOpenResultV1: Codable, Equatable {
+    let schemaVersion: String
+    let url: String?
+    let didOpen: Bool
+}
+
 @MainActor
 struct ActionPackExecutionService {
     private let storagePathService: StoragePathService
     private let validationService: ActionPackValidationService
     private let calendarService: any CalendarEventCreating
+    private let clipboardService: any ClipboardWriting
+    private let urlOpeningService: any URLOpening
 
     init(
         storagePathService: StoragePathService? = nil,
         validationService: ActionPackValidationService? = nil,
-        calendarService: (any CalendarEventCreating)? = nil
+        calendarService: (any CalendarEventCreating)? = nil,
+        clipboardService: (any ClipboardWriting)? = nil,
+        urlOpeningService: (any URLOpening)? = nil
     ) {
         self.storagePathService = storagePathService ?? StoragePathService()
         self.validationService = validationService ?? ActionPackValidationService()
         self.calendarService = calendarService ?? EventKitCalendarEventService()
+        self.clipboardService = clipboardService ?? SystemClipboardService()
+        self.urlOpeningService = urlOpeningService ?? NoopURLOpeningService()
     }
 
     @discardableResult
@@ -82,6 +101,7 @@ struct ActionPackExecutionService {
         let startedAt = createdAt
         var stepTraces: [ActionPackStepTrace] = []
         var finalStatus: ActionRunStatus = .success
+        var stepOutputsByID: [String: String] = [:]
 
         for step in selection.pack.steps {
             do {
@@ -90,8 +110,10 @@ struct ActionPackExecutionService {
                     bindings: validated.validatedBindings,
                     runID: runID,
                     runsDirectory: runsDirectory,
-                    encoder: encoder
+                    encoder: encoder,
+                    stepOutputsByID: stepOutputsByID
                 )
+                stepOutputsByID[step.id] = outputPath
                 stepTraces.append(
                     ActionPackStepTrace(
                         stepID: step.id,
@@ -146,7 +168,8 @@ struct ActionPackExecutionService {
         bindings: [String: String],
         runID: String,
         runsDirectory: URL,
-        encoder: JSONEncoder
+        encoder: JSONEncoder,
+        stepOutputsByID: [String: String]
     ) throws -> String {
         let outputURL = runsDirectory.appendingPathComponent("\(runID).\(step.outputFileName)", isDirectory: false)
 
@@ -180,6 +203,57 @@ struct ActionPackExecutionService {
                 notes: request.notes,
                 url: request.url?.absoluteString,
                 createdEventIdentifier: identifier
+            )
+            try encoder.encode(result).write(to: outputURL, options: .atomic)
+            return outputURL.path
+
+        case .exportFile:
+            guard let sourceStepID = step.sourceStepID else {
+                throw ActionPackExecutionError.missingSourceStepOutput(step.id)
+            }
+            guard let sourceOutputPath = stepOutputsByID[sourceStepID] else {
+                throw ActionPackExecutionError.missingSourceStepOutput(sourceStepID)
+            }
+            let sourceURL = URL(fileURLWithPath: sourceOutputPath)
+            let exportsDirectory = try storagePathService.applicationSupportPath(for: .exports)
+            try storagePathService.fileManager.createDirectory(at: exportsDirectory, withIntermediateDirectories: true)
+            let exportURL = exportsDirectory.appendingPathComponent("\(runID).\(step.outputFileName)", isDirectory: false)
+            let data = try Data(contentsOf: sourceURL)
+            try data.write(to: exportURL, options: .atomic)
+            return exportURL.path
+
+        case .copyTextToClipboard:
+            guard let sourceStepID = step.sourceStepID else {
+                throw ActionPackExecutionError.missingSourceStepOutput(step.id)
+            }
+            guard let sourceOutputPath = stepOutputsByID[sourceStepID] else {
+                throw ActionPackExecutionError.missingSourceStepOutput(sourceStepID)
+            }
+            let sourceText = try String(contentsOfFile: sourceOutputPath, encoding: .utf8)
+            let didCopy = clipboardService.writeText(sourceText)
+            let result = ClipboardWriteResultV1(
+                schemaVersion: "clipboard-write-result.v1",
+                text: sourceText,
+                didCopy: didCopy
+            )
+            try encoder.encode(result).write(to: outputURL, options: .atomic)
+            return outputURL.path
+
+        case .openURL:
+            guard let template = step.template else {
+                throw ActionPackExecutionError.stepTemplateMissing(step.id)
+            }
+            let rendered = normalizedOptional(renderTemplate(template, bindings: bindings))
+            let opened: Bool
+            if let rendered, let url = URL(string: rendered) {
+                opened = urlOpeningService.open(url)
+            } else {
+                opened = false
+            }
+            let result = URLOpenResultV1(
+                schemaVersion: "open-url-result.v1",
+                url: rendered,
+                didOpen: opened
             )
             try encoder.encode(result).write(to: outputURL, options: .atomic)
             return outputURL.path

@@ -30,6 +30,21 @@ struct ActionPackStepDefinition: Codable, Equatable, Sendable {
     let type: ActionPackStepType
     let outputFileName: String
     let template: String?
+    let sourceStepID: String?
+
+    init(
+        id: String,
+        type: ActionPackStepType,
+        outputFileName: String,
+        template: String?,
+        sourceStepID: String? = nil
+    ) {
+        self.id = id
+        self.type = type
+        self.outputFileName = outputFileName
+        self.template = template
+        self.sourceStepID = sourceStepID
+    }
 }
 
 enum ActionPackStepType: String, Codable, Equatable, Sendable {
@@ -37,6 +52,9 @@ enum ActionPackStepType: String, Codable, Equatable, Sendable {
     case exportBindingsJSON = "export_bindings_json"
     case exportJobTrackerJSON = "export_job_tracker_json"
     case createCalendarEvent = "create_calendar_event"
+    case exportFile = "export_file"
+    case copyTextToClipboard = "copy_text_to_clipboard"
+    case openURL = "open_url"
 }
 
 struct ActionPackSelection: Equatable, Sendable {

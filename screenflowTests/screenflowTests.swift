@@ -37,6 +37,18 @@ private struct TestCalendarEventResultV1: Codable, Equatable {
     let createdEventIdentifier: String?
 }
 
+private struct TestClipboardWriteResultV1: Codable, Equatable {
+    let schemaVersion: String
+    let text: String
+    let didCopy: Bool
+}
+
+private struct TestURLOpenResultV1: Codable, Equatable {
+    let schemaVersion: String
+    let url: String?
+    let didOpen: Bool
+}
+
 struct screenflowTests {
     private enum TestRuntimeError: Error {
         case exhaustedOutputs
@@ -69,6 +81,42 @@ struct screenflowTests {
         func createEvent(_ request: CalendarEventRequest) throws -> String? {
             _ = request
             return createdIdentifier
+        }
+    }
+
+    private actor FakeClipboardService: ClipboardWriting {
+        private(set) var copiedTexts: [String] = []
+        private let didCopy: Bool
+
+        init(didCopy: Bool = true) {
+            self.didCopy = didCopy
+        }
+
+        func writeText(_ text: String) -> Bool {
+            copiedTexts.append(text)
+            return didCopy
+        }
+
+        func lastCopiedText() -> String? {
+            copiedTexts.last
+        }
+    }
+
+    private actor FakeURLOpeningService: URLOpening {
+        private(set) var openedURLs: [URL] = []
+        private let shouldOpen: Bool
+
+        init(shouldOpen: Bool = true) {
+            self.shouldOpen = shouldOpen
+        }
+
+        func open(_ url: URL) -> Bool {
+            openedURLs.append(url)
+            return shouldOpen
+        }
+
+        func lastOpenedURL() -> URL? {
+            openedURLs.last
         }
     }
 
@@ -1169,8 +1217,8 @@ struct screenflowTests {
         let trace = try decoder.decode(ActionPackExecutionTraceV1.self, from: traceData)
         #expect(trace.schemaVersion == "action-pack-trace.v1")
         #expect(trace.packID == "error_log.generate_issue_template")
-        #expect(trace.steps.count == 1)
-        #expect(trace.steps[0].status == .success)
+        #expect(trace.steps.count == 2)
+        #expect(trace.steps.allSatisfy { $0.status == .success })
         #expect(try repository.actionPackRun(id: run.id)?.packId == "error_log.generate_issue_template")
     }
 
@@ -1217,7 +1265,8 @@ struct screenflowTests {
         let trace = try traceDecoder.decode(ActionPackExecutionTraceV1.self, from: traceData)
 
         #expect(trace.status == .success)
-        let stepOutput = try #require(trace.steps.first?.outputPath)
+        #expect(trace.steps.count == 2)
+        let stepOutput = try #require(trace.steps.first(where: { $0.stepID == "save-job-json" })?.outputPath)
         let outputData = try Data(contentsOf: URL(fileURLWithPath: stepOutput))
         let output = try JSONDecoder().decode(TestJobTrackerEntryV1.self, from: outputData)
 
@@ -1230,6 +1279,13 @@ struct screenflowTests {
         #expect(output.salaryRange?.min == 180000)
         #expect(output.salaryRange?.max == 220000)
         #expect(output.salaryRange?.currency == "USD")
+
+        let exportOutput = try #require(trace.steps.first(where: { $0.stepID == "export-job-json-file" })?.outputPath)
+        #expect(exportOutput.contains("/Application Support/"))
+        #expect(exportOutput.contains("/Exports/"))
+        #expect(exportOutput.hasSuffix(".job-tracker-export.json"))
+        let exportedData = try Data(contentsOf: URL(fileURLWithPath: exportOutput))
+        #expect(exportedData == outputData)
     }
 
     @MainActor
@@ -1348,7 +1404,11 @@ struct screenflowTests {
     func eventFlyerCreateShareCardExportsFormattedTextOutput() async throws {
         let repository = try makeRepository()
         let storage = StoragePathService(rootFolderName: "ScreenFlowEventShareCardTest-\(UUID().uuidString)")
-        let execution = ActionPackExecutionService(storagePathService: storage)
+        let clipboard = FakeClipboardService(didCopy: true)
+        let execution = ActionPackExecutionService(
+            storagePathService: storage,
+            clipboardService: clipboard
+        )
         let registry = ActionPackRegistryService()
 
         let pack = try #require(registry.allPacks().first(where: { $0.id == "event_flyer.create_share_card" }))
@@ -1384,14 +1444,23 @@ struct screenflowTests {
         traceDecoder.dateDecodingStrategy = .iso8601
         let trace = try traceDecoder.decode(ActionPackExecutionTraceV1.self, from: traceData)
         #expect(trace.status == .success)
+        #expect(trace.steps.count == 2)
 
-        let stepOutput = try #require(trace.steps.first?.outputPath)
+        let stepOutput = try #require(trace.steps.first(where: { $0.stepID == "render-share-card" })?.outputPath)
         let card = try String(contentsOfFile: stepOutput, encoding: .utf8)
         #expect(card.contains("Event Share Card"))
         #expect(card.contains("Title: WWDC Watch Party"))
         #expect(card.contains("Date/Time: 2026-06-10T18:00:00Z"))
         #expect(card.contains("Venue: Main Hall"))
         #expect(card.contains("Address: 123 Apple St"))
+
+        let clipboardStepOutput = try #require(trace.steps.first(where: { $0.stepID == "copy-share-card-to-clipboard" })?.outputPath)
+        let clipboardData = try Data(contentsOf: URL(fileURLWithPath: clipboardStepOutput))
+        let clipboardResult = try JSONDecoder().decode(TestClipboardWriteResultV1.self, from: clipboardData)
+        #expect(clipboardResult.schemaVersion == "clipboard-write-result.v1")
+        #expect(clipboardResult.didCopy == true)
+        #expect(clipboardResult.text == card)
+        #expect(await clipboard.lastCopiedText() == card)
     }
 
     @MainActor
@@ -1435,8 +1504,9 @@ struct screenflowTests {
         traceDecoder.dateDecodingStrategy = .iso8601
         let trace = try traceDecoder.decode(ActionPackExecutionTraceV1.self, from: traceData)
         #expect(trace.status == .success)
+        #expect(trace.steps.count == 2)
 
-        let stepOutput = try #require(trace.steps.first?.outputPath)
+        let stepOutput = try #require(trace.steps.first(where: { $0.stepID == "render-issue-template" })?.outputPath)
         let issue = try String(contentsOfFile: stepOutput, encoding: .utf8)
         #expect(issue.contains("# Bug Report: Crash in Build.swift"))
         #expect(issue.contains("## Summary"))
@@ -1444,6 +1514,70 @@ struct screenflowTests {
         #expect(issue.contains("- Tool: xcode"))
         #expect(issue.contains("- Affected Files: Build.swift"))
         #expect(issue.contains("## Stack Trace"))
+
+        let exportOutput = try #require(trace.steps.first(where: { $0.stepID == "export-issue-template-file" })?.outputPath)
+        #expect(exportOutput.contains("/Application Support/"))
+        #expect(exportOutput.contains("/Exports/"))
+        #expect(exportOutput.hasSuffix(".issue-template-export.md"))
+        let exportedIssue = try String(contentsOfFile: exportOutput, encoding: .utf8)
+        #expect(exportedIssue == issue)
+    }
+
+    @MainActor
+    @Test
+    func eventFlyerAddToCalendarOptionalURLOpenWritesDeterministicResult() async throws {
+        let repository = try makeRepository()
+        let storage = StoragePathService(rootFolderName: "ScreenFlowOpenURLTest-\(UUID().uuidString)")
+        let urlOpener = FakeURLOpeningService(shouldOpen: true)
+        let execution = ActionPackExecutionService(
+            storagePathService: storage,
+            calendarService: FakeCalendarEventService(createdIdentifier: "event-456"),
+            urlOpeningService: urlOpener
+        )
+        let registry = ActionPackRegistryService()
+
+        let pack = try #require(registry.allPacks().first(where: { $0.id == "event_flyer.add_to_calendar" }))
+        let spec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .eventFlyer,
+            scenarioConfidence: 0.9,
+            entities: ScreenFlowEntities(
+                job: nil,
+                event: EventEntities(
+                    title: "Launch Party",
+                    dateTime: "2026-08-01T10:00:00Z",
+                    venue: nil,
+                    address: nil,
+                    link: "https://example.com/launch"
+                ),
+                error: nil
+            ),
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "m", promptVersion: "p")
+        )
+
+        let run = try execution.execute(
+            selection: ActionPackSelection(pack: pack, suggestedBindings: [:]),
+            spec: spec,
+            screenID: "screen-event-3",
+            repository: repository,
+            createdAt: Date(timeIntervalSince1970: 1_700_000_034)
+        )
+
+        let traceData = try Data(contentsOf: URL(fileURLWithPath: run.traceJSONPath))
+        let traceDecoder = JSONDecoder()
+        traceDecoder.dateDecodingStrategy = .iso8601
+        let trace = try traceDecoder.decode(ActionPackExecutionTraceV1.self, from: traceData)
+        #expect(trace.status == .success)
+        #expect(trace.steps.count == 2)
+
+        let urlStepOutput = try #require(trace.steps.first(where: { $0.stepID == "open-event-link" })?.outputPath)
+        let urlData = try Data(contentsOf: URL(fileURLWithPath: urlStepOutput))
+        let urlResult = try JSONDecoder().decode(TestURLOpenResultV1.self, from: urlData)
+        #expect(urlResult.schemaVersion == "open-url-result.v1")
+        #expect(urlResult.url == "https://example.com/launch")
+        #expect(urlResult.didOpen == true)
+        #expect(await urlOpener.lastOpenedURL()?.absoluteString == "https://example.com/launch")
     }
 
     @MainActor

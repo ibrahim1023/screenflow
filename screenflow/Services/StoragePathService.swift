@@ -17,6 +17,7 @@ enum StorageSubdirectory: String, CaseIterable, Sendable {
     case llm = "LLM"
     case extracted = "Extracted"
     case runs = "Runs"
+    case exports = "Exports"
 }
 
 struct StoragePathService {
