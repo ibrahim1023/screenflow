@@ -89,10 +89,11 @@ struct ActionPackRegistryService {
                     type: .renderTextTemplate,
                     outputFileName: "share-card.txt",
                     template: """
-                    {{event.title}}
-                    {{event.dateTime}}
-                    {{event.venue}}
-                    {{event.address}}
+                    Event Share Card
+                    Title: {{event.title}}
+                    Date/Time: {{event.dateTime}}
+                    Venue: {{event.venue}}
+                    Address: {{event.address}}
                     """
                 )
             ]
@@ -111,11 +112,17 @@ struct ActionPackRegistryService {
                     type: .renderTextTemplate,
                     outputFileName: "issue-template.md",
                     template: """
-                    # Error Report
-                    Type: {{error.errorType}}
-                    Tool: {{error.toolName}}
-                    Message: {{error.message}}
-                    Files: {{error.filePaths}}
+                    # Bug Report: {{error.message}}
+
+                    ## Summary
+                    - Error Type: {{error.errorType}}
+                    - Tool: {{error.toolName}}
+                    - Affected Files: {{error.filePaths}}
+
+                    ## Reproduction
+                    1. Reproduce the issue locally.
+                    2. Capture full stack trace.
+                    3. Attach logs and environment info.
 
                     ## Stack Trace
                     {{error.stackTrace}}

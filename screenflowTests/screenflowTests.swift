@@ -1343,4 +1343,158 @@ struct screenflowTests {
         #expect(result.createdEventIdentifier == "event-123")
     }
 
+    @MainActor
+    @Test
+    func eventFlyerCreateShareCardExportsFormattedTextOutput() async throws {
+        let repository = try makeRepository()
+        let storage = StoragePathService(rootFolderName: "ScreenFlowEventShareCardTest-\(UUID().uuidString)")
+        let execution = ActionPackExecutionService(storagePathService: storage)
+        let registry = ActionPackRegistryService()
+
+        let pack = try #require(registry.allPacks().first(where: { $0.id == "event_flyer.create_share_card" }))
+        let spec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .eventFlyer,
+            scenarioConfidence: 0.9,
+            entities: ScreenFlowEntities(
+                job: nil,
+                event: EventEntities(
+                    title: "WWDC Watch Party",
+                    dateTime: "2026-06-10T18:00:00Z",
+                    venue: "Main Hall",
+                    address: "123 Apple St",
+                    link: nil
+                ),
+                error: nil
+            ),
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "m", promptVersion: "p")
+        )
+
+        let run = try execution.execute(
+            selection: ActionPackSelection(pack: pack, suggestedBindings: [:]),
+            spec: spec,
+            screenID: "screen-event-2",
+            repository: repository,
+            createdAt: Date(timeIntervalSince1970: 1_700_000_031)
+        )
+
+        let traceData = try Data(contentsOf: URL(fileURLWithPath: run.traceJSONPath))
+        let traceDecoder = JSONDecoder()
+        traceDecoder.dateDecodingStrategy = .iso8601
+        let trace = try traceDecoder.decode(ActionPackExecutionTraceV1.self, from: traceData)
+        #expect(trace.status == .success)
+
+        let stepOutput = try #require(trace.steps.first?.outputPath)
+        let card = try String(contentsOfFile: stepOutput, encoding: .utf8)
+        #expect(card.contains("Event Share Card"))
+        #expect(card.contains("Title: WWDC Watch Party"))
+        #expect(card.contains("Date/Time: 2026-06-10T18:00:00Z"))
+        #expect(card.contains("Venue: Main Hall"))
+        #expect(card.contains("Address: 123 Apple St"))
+    }
+
+    @MainActor
+    @Test
+    func errorLogGenerateIssueTemplateExportsMarkdownTemplate() async throws {
+        let repository = try makeRepository()
+        let storage = StoragePathService(rootFolderName: "ScreenFlowIssueTemplateTest-\(UUID().uuidString)")
+        let execution = ActionPackExecutionService(storagePathService: storage)
+        let registry = ActionPackRegistryService()
+
+        let pack = try #require(registry.allPacks().first(where: { $0.id == "error_log.generate_issue_template" }))
+        let spec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .errorLog,
+            scenarioConfidence: 0.9,
+            entities: ScreenFlowEntities(
+                job: nil,
+                event: nil,
+                error: ErrorEntities(
+                    errorType: "fatal",
+                    message: "Crash in Build.swift",
+                    stackTrace: "line1\nline2",
+                    toolName: "xcode",
+                    filePaths: ["Build.swift"]
+                )
+            ),
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "m", promptVersion: "p")
+        )
+
+        let run = try execution.execute(
+            selection: ActionPackSelection(pack: pack, suggestedBindings: [:]),
+            spec: spec,
+            screenID: "screen-error-1",
+            repository: repository,
+            createdAt: Date(timeIntervalSince1970: 1_700_000_032)
+        )
+
+        let traceData = try Data(contentsOf: URL(fileURLWithPath: run.traceJSONPath))
+        let traceDecoder = JSONDecoder()
+        traceDecoder.dateDecodingStrategy = .iso8601
+        let trace = try traceDecoder.decode(ActionPackExecutionTraceV1.self, from: traceData)
+        #expect(trace.status == .success)
+
+        let stepOutput = try #require(trace.steps.first?.outputPath)
+        let issue = try String(contentsOfFile: stepOutput, encoding: .utf8)
+        #expect(issue.contains("# Bug Report: Crash in Build.swift"))
+        #expect(issue.contains("## Summary"))
+        #expect(issue.contains("- Error Type: fatal"))
+        #expect(issue.contains("- Tool: xcode"))
+        #expect(issue.contains("- Affected Files: Build.swift"))
+        #expect(issue.contains("## Stack Trace"))
+    }
+
+    @MainActor
+    @Test
+    func errorLogCreateDebugChecklistExportsChecklistText() async throws {
+        let repository = try makeRepository()
+        let storage = StoragePathService(rootFolderName: "ScreenFlowDebugChecklistTest-\(UUID().uuidString)")
+        let execution = ActionPackExecutionService(storagePathService: storage)
+        let registry = ActionPackRegistryService()
+
+        let pack = try #require(registry.allPacks().first(where: { $0.id == "error_log.create_debug_checklist" }))
+        let spec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .errorLog,
+            scenarioConfidence: 0.9,
+            entities: ScreenFlowEntities(
+                job: nil,
+                event: nil,
+                error: ErrorEntities(
+                    errorType: nil,
+                    message: "Crash in Build.swift",
+                    stackTrace: nil,
+                    toolName: nil,
+                    filePaths: ["Build.swift"]
+                )
+            ),
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "m", promptVersion: "p")
+        )
+
+        let run = try execution.execute(
+            selection: ActionPackSelection(pack: pack, suggestedBindings: [:]),
+            spec: spec,
+            screenID: "screen-error-2",
+            repository: repository,
+            createdAt: Date(timeIntervalSince1970: 1_700_000_033)
+        )
+
+        let traceData = try Data(contentsOf: URL(fileURLWithPath: run.traceJSONPath))
+        let traceDecoder = JSONDecoder()
+        traceDecoder.dateDecodingStrategy = .iso8601
+        let trace = try traceDecoder.decode(ActionPackExecutionTraceV1.self, from: traceData)
+        #expect(trace.status == .success)
+
+        let stepOutput = try #require(trace.steps.first?.outputPath)
+        let checklist = try String(contentsOfFile: stepOutput, encoding: .utf8)
+        #expect(checklist.contains("Debug Checklist"))
+        #expect(checklist.contains("[ ] Reproduce error: Crash in Build.swift"))
+        #expect(checklist.contains("[ ] Inspect files: Build.swift"))
+        #expect(checklist.contains("[ ] Add test case"))
+        #expect(checklist.contains("[ ] Verify fix"))
+    }
+
 }
