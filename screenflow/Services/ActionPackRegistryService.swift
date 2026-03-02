@@ -68,17 +68,10 @@ struct ActionPackRegistryService {
             preconditions: [],
             steps: [
                 ActionPackStepDefinition(
-                    id: "render-calendar-request",
-                    type: .renderTextTemplate,
-                    outputFileName: "calendar-request.txt",
-                    template: """
-                    Calendar Request
-                    Title: {{event.title}}
-                    DateTime: {{event.dateTime}}
-                    Venue: {{event.venue}}
-                    Address: {{event.address}}
-                    Link: {{event.link}}
-                    """
+                    id: "create-calendar-event",
+                    type: .createCalendarEvent,
+                    outputFileName: "calendar-event-result.json",
+                    template: nil
                 )
             ]
         )

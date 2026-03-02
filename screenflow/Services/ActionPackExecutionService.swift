@@ -3,6 +3,7 @@ import Foundation
 
 enum ActionPackExecutionError: Error, Equatable {
     case stepTemplateMissing(String)
+    case invalidEventDateTime(String)
 }
 
 private struct JobTrackerSalaryRange: Codable, Equatable {
@@ -21,17 +22,31 @@ private struct JobTrackerEntryV1: Codable, Equatable {
     let salaryRange: JobTrackerSalaryRange?
 }
 
+private struct CalendarEventResultV1: Codable, Equatable {
+    let schemaVersion: String
+    let title: String
+    let startDate: Date
+    let endDate: Date
+    let location: String?
+    let notes: String?
+    let url: String?
+    let createdEventIdentifier: String?
+}
+
 @MainActor
 struct ActionPackExecutionService {
     private let storagePathService: StoragePathService
     private let validationService: ActionPackValidationService
+    private let calendarService: any CalendarEventCreating
 
     init(
         storagePathService: StoragePathService? = nil,
-        validationService: ActionPackValidationService? = nil
+        validationService: ActionPackValidationService? = nil,
+        calendarService: (any CalendarEventCreating)? = nil
     ) {
         self.storagePathService = storagePathService ?? StoragePathService()
         self.validationService = validationService ?? ActionPackValidationService()
+        self.calendarService = calendarService ?? EventKitCalendarEventService()
     }
 
     @discardableResult
@@ -152,6 +167,22 @@ struct ActionPackExecutionService {
             let entry = buildJobTrackerEntry(from: bindings)
             try encoder.encode(entry).write(to: outputURL, options: .atomic)
             return outputURL.path
+
+        case .createCalendarEvent:
+            let request = try buildCalendarEventRequest(from: bindings)
+            let identifier = try calendarService.createEvent(request)
+            let result = CalendarEventResultV1(
+                schemaVersion: "calendar-event-result.v1",
+                title: request.title,
+                startDate: request.startDate,
+                endDate: request.endDate,
+                location: request.location,
+                notes: request.notes,
+                url: request.url?.absoluteString,
+                createdEventIdentifier: identifier
+            )
+            try encoder.encode(result).write(to: outputURL, options: .atomic)
+            return outputURL.path
         }
     }
 
@@ -214,6 +245,41 @@ struct ActionPackExecutionService {
                     .trimmingCharacters(in: .whitespacesAndNewlines)
             }
             .filter { !$0.isEmpty }
+    }
+
+    private func buildCalendarEventRequest(from bindings: [String: String]) throws -> CalendarEventRequest {
+        let title = normalizedOrFallback(bindings["event.title"], fallback: "Untitled Event")
+        let dateTimeRaw = normalizedOrFallback(bindings["event.dateTime"], fallback: "")
+
+        guard let startDate = parseISO8601(dateTimeRaw) else {
+            throw ActionPackExecutionError.invalidEventDateTime(dateTimeRaw)
+        }
+
+        let locationParts = [normalizedOptional(bindings["event.venue"]), normalizedOptional(bindings["event.address"])]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+        let location = locationParts.isEmpty ? nil : locationParts.joined(separator: ", ")
+
+        let link = normalizedOptional(bindings["event.link"])
+        let notes = link.map { "Source Link: \($0)" }
+
+        return CalendarEventRequest(
+            title: title,
+            startDate: startDate,
+            endDate: startDate.addingTimeInterval(60 * 60),
+            location: location,
+            notes: notes,
+            url: link.flatMap(URL.init(string:))
+        )
+    }
+
+    private func parseISO8601(_ value: String) -> Date? {
+        guard !value.isEmpty else { return nil }
+        let withFractional = ISO8601DateFormatter()
+        withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let plain = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime]
+        return withFractional.date(from: value) ?? plain.date(from: value)
     }
 
     private func makeRunID(

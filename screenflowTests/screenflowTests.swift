@@ -26,6 +26,17 @@ private struct TestJobTrackerEntryV1: Codable, Equatable {
     let salaryRange: TestJobTrackerSalaryRange?
 }
 
+private struct TestCalendarEventResultV1: Codable, Equatable {
+    let schemaVersion: String
+    let title: String
+    let startDate: Date
+    let endDate: Date
+    let location: String?
+    let notes: String?
+    let url: String?
+    let createdEventIdentifier: String?
+}
+
 struct screenflowTests {
     private enum TestRuntimeError: Error {
         case exhaustedOutputs
@@ -49,6 +60,15 @@ struct screenflowTests {
         func run(request: ScreenFlowModelRequest) async throws -> ScreenFlowModelOutput {
             _ = request
             return output
+        }
+    }
+
+    private struct FakeCalendarEventService: CalendarEventCreating {
+        let createdIdentifier: String?
+
+        func createEvent(_ request: CalendarEventRequest) throws -> String? {
+            _ = request
+            return createdIdentifier
         }
     }
 
@@ -1263,6 +1283,64 @@ struct screenflowTests {
         #expect(outline.contains("Relevant skills: Swift, SwiftUI"))
         #expect(outline.contains("Preferred location: Remote"))
         #expect(outline.contains("Job link: https://example.com/jobs/ios"))
+    }
+
+    @MainActor
+    @Test
+    func eventFlyerAddToCalendarCreatesEventAndPersistsResultArtifact() async throws {
+        let repository = try makeRepository()
+        let storage = StoragePathService(rootFolderName: "ScreenFlowEventCalendarTest-\(UUID().uuidString)")
+        let execution = ActionPackExecutionService(
+            storagePathService: storage,
+            calendarService: FakeCalendarEventService(createdIdentifier: "event-123")
+        )
+        let registry = ActionPackRegistryService()
+
+        let pack = try #require(registry.allPacks().first(where: { $0.id == "event_flyer.add_to_calendar" }))
+        let spec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .eventFlyer,
+            scenarioConfidence: 0.9,
+            entities: ScreenFlowEntities(
+                job: nil,
+                event: EventEntities(
+                    title: "WWDC Watch Party",
+                    dateTime: "2026-06-10T18:00:00Z",
+                    venue: "Main Hall",
+                    address: "123 Apple St",
+                    link: "https://example.com/event"
+                ),
+                error: nil
+            ),
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "m", promptVersion: "p")
+        )
+
+        let run = try execution.execute(
+            selection: ActionPackSelection(pack: pack, suggestedBindings: [:]),
+            spec: spec,
+            screenID: "screen-event-1",
+            repository: repository,
+            createdAt: Date(timeIntervalSince1970: 1_700_000_030)
+        )
+
+        let traceData = try Data(contentsOf: URL(fileURLWithPath: run.traceJSONPath))
+        let traceDecoder = JSONDecoder()
+        traceDecoder.dateDecodingStrategy = .iso8601
+        let trace = try traceDecoder.decode(ActionPackExecutionTraceV1.self, from: traceData)
+
+        #expect(trace.status == .success)
+        let stepOutput = try #require(trace.steps.first?.outputPath)
+        let resultData = try Data(contentsOf: URL(fileURLWithPath: stepOutput))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let result = try decoder.decode(TestCalendarEventResultV1.self, from: resultData)
+
+        #expect(result.schemaVersion == "calendar-event-result.v1")
+        #expect(result.title == "WWDC Watch Party")
+        #expect(result.location == "Main Hall, 123 Apple St")
+        #expect(result.url == "https://example.com/event")
+        #expect(result.createdEventIdentifier == "event-123")
     }
 
 }
