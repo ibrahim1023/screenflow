@@ -8,6 +8,9 @@
 import SwiftUI
 import PhotosUI
 import SwiftData
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -19,23 +22,29 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             List {
-                ForEach(screenRecords) { record in
-                    NavigationLink {
-                        Text(record.id)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(record.scenario.rawValue)
-                            Text(record.createdAt, format: Date.FormatStyle(date: .numeric, time: .standard))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                if screenRecords.isEmpty {
+                    ContentUnavailableView(
+                        "No Screens Yet",
+                        systemImage: "photo.on.rectangle.angled",
+                        description: Text("Import a screenshot to start generating deterministic action packs.")
+                    )
+                } else {
+                    Section("Screens (\(screenRecords.count))") {
+                        ForEach(screenRecords) { record in
+                            NavigationLink {
+                                Text(record.id)
+                            } label: {
+                                ScreenLibraryRow(record: record)
+                            }
                         }
+                        .onDelete(perform: deleteItems)
                     }
                 }
-                .onDelete(perform: deleteItems)
             }
 #if os(macOS)
             .navigationSplitViewColumnWidth(min: 180, ideal: 200)
 #endif
+            .navigationTitle("ScreenFlow")
             .toolbar {
 #if os(iOS)
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -121,6 +130,98 @@ struct ContentView: View {
             for index in offsets {
                 modelContext.delete(screenRecords[index])
             }
+        }
+    }
+}
+
+private struct ScreenLibraryRow: View {
+    let record: ScreenRecord
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ScreenshotThumbnailView(imagePath: record.imagePath)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(record.scenario.displayName)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                HStack(spacing: 8) {
+                    Label(record.source.displayName, systemImage: "square.and.arrow.down")
+                    Text("Confidence \(record.scenarioConfidence.formatted(.percent.precision(.fractionLength(0))))")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                Text(record.createdAt, format: Date.FormatStyle(date: .abbreviated, time: .shortened))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+private struct ScreenshotThumbnailView: View {
+    let imagePath: String
+
+    var body: some View {
+        Group {
+#if canImport(UIKit)
+            if let image = UIImage(contentsOfFile: imagePath) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.secondary.opacity(0.2))
+                    Image(systemName: "photo")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+#else
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.secondary.opacity(0.2))
+                Image(systemName: "photo")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+#endif
+        }
+        .frame(width: 56, height: 56)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+        )
+    }
+}
+
+private extension ScenarioType {
+    var displayName: String {
+        switch self {
+        case .unknown:
+            return "Unknown Screen"
+        case .jobListing:
+            return "Job Listing"
+        case .eventFlyer:
+            return "Event Flyer"
+        case .errorLog:
+            return "Error Log"
+        }
+    }
+}
+
+private extension ScreenSource {
+    var displayName: String {
+        switch self {
+        case .shareSheet:
+            return "Share Sheet"
+        case .photoPicker:
+            return "Photo Picker"
         }
     }
 }
