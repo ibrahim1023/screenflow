@@ -82,7 +82,7 @@
 - [x] Screen detail view with scenario, entities, pack suggestions.
 - [x] Edit entities before pack execution.
 - [x] Pack execution screen with step-by-step progress and outputs.
-- [ ] Settings screen: cloud drafting toggle, data retention, privacy mode.
+- [x] Settings screen: cloud drafting toggle, data retention, privacy mode.
 
 ## 12. Determinism and Replay
 - [x] Ensure deterministic output from OCR artifacts and validation/canonicalization rules.

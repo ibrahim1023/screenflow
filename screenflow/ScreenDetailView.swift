@@ -5,6 +5,7 @@ struct ScreenDetailView: View {
     let record: ScreenRecord
 
     @Environment(\.modelContext) private var modelContext
+    @AppStorage("screenflow.settings.privacyModeEnabled") private var privacyModeEnabled = false
     @State private var latestSpec: ScreenFlowSpecV1?
     @State private var latestExtraction: ExtractionResult?
     @State private var loadErrorMessage: String?
@@ -62,8 +63,17 @@ struct ScreenDetailView: View {
     private var screenshotSection: some View {
         Section("Screenshot") {
             HStack(spacing: 12) {
-                ScreenshotThumbnailView(imagePath: record.imagePath)
+                ScreenshotThumbnailView(imagePath: record.imagePath, isPrivacyModeEnabled: privacyModeEnabled)
                     .frame(width: 96, height: 96)
+                    .overlay(alignment: .bottomTrailing) {
+                        if privacyModeEnabled {
+                            Image(systemName: "eye.slash.fill")
+                                .font(.caption2)
+                                .padding(6)
+                                .background(.ultraThinMaterial, in: Circle())
+                                .padding(6)
+                        }
+                    }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(record.scenario.displayName)

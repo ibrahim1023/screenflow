@@ -15,9 +15,11 @@ import UIKit
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("screenflow.settings.privacyModeEnabled") private var privacyModeEnabled = false
     @Query(sort: \ScreenRecord.createdAt, order: .reverse) private var screenRecords: [ScreenRecord]
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var importErrorMessage: String?
+    @State private var isPresentingSettings = false
 
     var body: some View {
         NavigationSplitView {
@@ -34,7 +36,7 @@ struct ContentView: View {
                             NavigationLink {
                                 ScreenDetailView(record: record)
                             } label: {
-                                ScreenLibraryRow(record: record)
+                                ScreenLibraryRow(record: record, isPrivacyModeEnabled: privacyModeEnabled)
                             }
                         }
                         .onDelete(perform: deleteItems)
@@ -51,6 +53,13 @@ struct ContentView: View {
                     EditButton()
                 }
 #endif
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        isPresentingSettings = true
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                }
                 ToolbarItem {
                     PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
                         Label("Import Photo", systemImage: "photo.on.rectangle")
@@ -112,6 +121,9 @@ struct ContentView: View {
         } message: {
             Text(importErrorMessage ?? "Unknown error")
         }
+        .sheet(isPresented: $isPresentingSettings) {
+            SettingsView()
+        }
     }
 
     @MainActor
@@ -136,10 +148,11 @@ struct ContentView: View {
 
 struct ScreenLibraryRow: View {
     let record: ScreenRecord
+    let isPrivacyModeEnabled: Bool
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            ScreenshotThumbnailView(imagePath: record.imagePath)
+            ScreenshotThumbnailView(imagePath: record.imagePath, isPrivacyModeEnabled: isPrivacyModeEnabled)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(record.scenario.displayName)
@@ -164,6 +177,7 @@ struct ScreenLibraryRow: View {
 
 struct ScreenshotThumbnailView: View {
     let imagePath: String
+    var isPrivacyModeEnabled: Bool = false
 
     var body: some View {
         Group {
@@ -191,12 +205,22 @@ struct ScreenshotThumbnailView: View {
             }
 #endif
         }
+        .blur(radius: isPrivacyModeEnabled ? 16 : 0)
         .frame(width: 56, height: 56)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
         )
+        .overlay(alignment: .center) {
+            if isPrivacyModeEnabled {
+                Text("Private")
+                    .font(.caption2)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.ultraThinMaterial, in: Capsule())
+            }
+        }
     }
 }
 
