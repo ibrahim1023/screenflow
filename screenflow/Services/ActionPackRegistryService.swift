@@ -4,7 +4,7 @@ struct ActionPackRegistryService {
     func allPacks() -> [ActionPackDefinition] {
         let jobSave = ActionPackDefinition(
             id: "job_listing.save_tracker",
-            version: "1.0.0",
+            version: ScreenFlowPackVersion.mvp,
             scenario: .jobListing,
             requiredBindings: [
                 ActionPackBindingRequirement(key: "job.company", valueType: .string),
@@ -31,7 +31,7 @@ struct ActionPackRegistryService {
 
         let jobDraft = ActionPackDefinition(
             id: "job_listing.draft_application_email",
-            version: "1.0.0",
+            version: ScreenFlowPackVersion.mvp,
             scenario: .jobListing,
             requiredBindings: [
                 ActionPackBindingRequirement(key: "job.company", valueType: .string),
@@ -65,7 +65,7 @@ struct ActionPackRegistryService {
 
         let eventCalendar = ActionPackDefinition(
             id: "event_flyer.add_to_calendar",
-            version: "1.0.0",
+            version: ScreenFlowPackVersion.mvp,
             scenario: .eventFlyer,
             requiredBindings: [
                 ActionPackBindingRequirement(key: "event.title", valueType: .string),
@@ -91,7 +91,7 @@ struct ActionPackRegistryService {
 
         let eventShare = ActionPackDefinition(
             id: "event_flyer.create_share_card",
-            version: "1.0.0",
+            version: ScreenFlowPackVersion.mvp,
             scenario: .eventFlyer,
             requiredBindings: [ActionPackBindingRequirement(key: "event.title", valueType: .string)],
             optionalBindingKeys: ["event.dateTime", "event.venue", "event.address"],
@@ -121,7 +121,7 @@ struct ActionPackRegistryService {
 
         let errorIssue = ActionPackDefinition(
             id: "error_log.generate_issue_template",
-            version: "1.0.0",
+            version: ScreenFlowPackVersion.mvp,
             scenario: .errorLog,
             requiredBindings: [ActionPackBindingRequirement(key: "error.message", valueType: .string)],
             optionalBindingKeys: ["error.errorType", "error.toolName", "error.filePaths", "error.stackTrace"],
@@ -160,7 +160,7 @@ struct ActionPackRegistryService {
 
         let errorChecklist = ActionPackDefinition(
             id: "error_log.create_debug_checklist",
-            version: "1.0.0",
+            version: ScreenFlowPackVersion.mvp,
             scenario: .errorLog,
             requiredBindings: [ActionPackBindingRequirement(key: "error.message", valueType: .string)],
             optionalBindingKeys: ["error.filePaths"],

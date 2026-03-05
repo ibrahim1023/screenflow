@@ -134,6 +134,7 @@ Two required schemas:
 - modelMeta {model, promptVersion}
 
 All schemas versioned explicitly.
+Version constants are centralized in `ScreenFlowVersionCatalog` and reused across OCR, extraction, model runtime, and action packs.
 
 ---
 

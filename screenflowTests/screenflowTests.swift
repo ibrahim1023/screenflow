@@ -664,6 +664,31 @@ struct screenflowTests {
 
     @MainActor
     @Test
+    func versionCatalogBacksPromptRuntimeAndPackDefaults() async throws {
+        let mapper = ScreenFlowPromptMappingService()
+        let request = try mapper.makeRequest(
+            from: OCRBlockSpecV1(
+                schemaVersion: ScreenFlowSchemaVersion.ocrBlockSpec,
+                source: ScreenSource.photoPicker.rawValue,
+                processingVersion: ScreenFlowPipelineVersion.imageProcessing,
+                languageHint: "en-US",
+                blocks: []
+            )
+        )
+
+        #expect(request.schemaVersion == ScreenFlowSchemaVersion.extractionSpec)
+        #expect(request.promptVersion == ScreenFlowPromptVersion.extractionV1)
+
+        let runtimeDefault = ScreenFlowModelRuntimeConfiguration.default()
+        #expect(runtimeDefault.onDeviceModel == ScreenFlowModelVersion.onDeviceDefault)
+        #expect(runtimeDefault.promptVersion == ScreenFlowPromptVersion.extractionV1)
+
+        let packs = ActionPackRegistryService().allPacks()
+        #expect(packs.allSatisfy { $0.version == ScreenFlowPackVersion.mvp })
+    }
+
+    @MainActor
+    @Test
     func modelRuntimeFallsBackFromOnDeviceToSelfHostedWhenUnavailable() async throws {
         let runtime = ScreenFlowModelRuntime(
             configuration: ScreenFlowModelRuntimeConfiguration(

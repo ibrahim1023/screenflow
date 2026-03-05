@@ -117,7 +117,7 @@ struct ScreenFlowInterpretationService {
             canonicalFallback,
             ScreenFlowModelOutput(
                 provider: initialOutput.provider,
-                model: "screenflow-heuristic-fallback-v1",
+                model: ScreenFlowModelVersion.heuristicFallback,
                 rawResponseText: initialOutput.rawResponseText
             )
         )

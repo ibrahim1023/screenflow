@@ -42,7 +42,7 @@ struct ScreenFlowIntentGraphService {
         }
 
         return IntentGraphV1(
-            schemaVersion: "IntentGraph.v1",
+            schemaVersion: ScreenFlowSchemaVersion.intentGraph,
             nodes: nodes.sorted(by: compareNode),
             edges: edges.sorted(by: compareEdge)
         )

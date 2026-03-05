@@ -72,7 +72,7 @@ struct OCRBlockNormalizer: Sendable {
         }
 
         return OCRBlockSpecV1(
-            schemaVersion: "OCRBlockSpec.v1",
+            schemaVersion: ScreenFlowSchemaVersion.ocrBlockSpec,
             source: source.rawValue,
             processingVersion: processingVersion,
             languageHint: languageHint,

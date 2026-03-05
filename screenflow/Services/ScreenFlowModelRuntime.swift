@@ -36,10 +36,10 @@ struct ScreenFlowModelRuntimeConfiguration: Sendable {
 
         return ScreenFlowModelRuntimeConfiguration(
             strategy: .onDevicePreferred,
-            onDeviceModel: "apple-on-device",
-            selfHostedModel: environment["SCREENFLOW_LOCAL_MODEL_NAME"] ?? "llama3.1:8b-instruct-q4_K_M",
+            onDeviceModel: ScreenFlowModelVersion.onDeviceDefault,
+            selfHostedModel: environment["SCREENFLOW_LOCAL_MODEL_NAME"] ?? ScreenFlowModelVersion.selfHostedDefault,
             selfHostedEndpoint: endpoint,
-            promptVersion: "screenflow-spec-v1"
+            promptVersion: ScreenFlowPromptVersion.extractionV1
         )
     }
 }

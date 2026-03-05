@@ -15,8 +15,8 @@ struct OCRArtifactPipelineService {
     init(
         extractionService: (any OCRExtracting)? = nil,
         storagePathService: StoragePathService? = nil,
-        processingVersion: String = "1.0.0",
-        engineVersion: String = "vision-ocr-v1"
+        processingVersion: String = ScreenFlowPipelineVersion.imageProcessing,
+        engineVersion: String = ScreenFlowPipelineVersion.ocrEngine
     ) {
         self.extractionService = extractionService ?? VisionOCRService()
         self.storagePathService = storagePathService ?? StoragePathService()

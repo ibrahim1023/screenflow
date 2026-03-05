@@ -34,8 +34,8 @@ struct InAppPhotoImportService {
     private let normalizer: DeterministicImageNormalizationService
 
     init(
-        processingVersion: String = "1.0.0",
-        metadataSchemaVersion: String = "screenshot-artifact.v1",
+        processingVersion: String = ScreenFlowPipelineVersion.imageProcessing,
+        metadataSchemaVersion: String = ScreenFlowSchemaVersion.screenshotArtifact,
         storagePathService: StoragePathService? = nil,
         idGenerator: StableScreenIdentifierGenerator? = nil,
         normalizer: DeterministicImageNormalizationService? = nil

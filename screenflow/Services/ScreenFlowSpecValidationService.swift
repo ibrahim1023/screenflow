@@ -22,7 +22,7 @@ struct ScreenFlowSpecValidationService {
     }
 
     func validateAndCanonicalize(_ spec: ScreenFlowSpecV1) throws -> ScreenFlowSpecV1 {
-        guard spec.schemaVersion == "ScreenFlowSpec.v1" else {
+        guard spec.schemaVersion == ScreenFlowSchemaVersion.extractionSpec else {
             throw ScreenFlowSpecValidationError.invalidSchemaVersion(spec.schemaVersion)
         }
 

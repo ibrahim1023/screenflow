@@ -26,7 +26,7 @@ struct VisionOCRService: OCRExtracting {
     init(
         recognitionLanguages: [String] = ["en-US"],
         automaticallyDetectsLanguage: Bool = false,
-        engineVersion: String = "vision-ocr-v1",
+        engineVersion: String = ScreenFlowPipelineVersion.ocrEngine,
         normalizer: OCRBlockNormalizer? = nil
     ) {
         self.recognitionLanguages = recognitionLanguages

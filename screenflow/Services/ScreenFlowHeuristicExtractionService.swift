@@ -13,13 +13,13 @@ struct ScreenFlowHeuristicExtractionService {
         let packSuggestions = defaultPackSuggestions(for: scenario)
 
         return ScreenFlowSpecV1(
-            schemaVersion: "ScreenFlowSpec.v1",
+            schemaVersion: ScreenFlowSchemaVersion.extractionSpec,
             scenario: scenario,
             scenarioConfidence: 0.2,
             entities: entities,
             packSuggestions: packSuggestions,
             modelMeta: ScreenFlowModelMeta(
-                model: "screenflow-heuristic-fallback-v1",
+                model: ScreenFlowModelVersion.heuristicFallback,
                 promptVersion: promptVersion
             )
         )
