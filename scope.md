@@ -331,7 +331,6 @@ Golden tests do not call live model endpoints.
 
 ### 9.3 Recorded Model Mode
 
-Optional:
 - Record model responses once
 - Replay locally in tests
 - Compare normalized outputs

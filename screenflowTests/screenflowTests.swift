@@ -142,6 +142,25 @@ struct screenflowTests {
         }
     }
 
+    private actor CountingModelRuntime: ScreenFlowModelRunning {
+        private(set) var callCount: Int = 0
+        private let output: ScreenFlowModelOutput
+
+        init(output: ScreenFlowModelOutput) {
+            self.output = output
+        }
+
+        func run(request: ScreenFlowModelRequest) async throws -> ScreenFlowModelOutput {
+            _ = request
+            callCount += 1
+            return output
+        }
+
+        func currentCallCount() -> Int {
+            callCount
+        }
+    }
+
     @MainActor
     private func makeRepository() throws -> ScreenFlowRepository {
         let schema = Schema([
@@ -1029,6 +1048,81 @@ struct screenflowTests {
         #expect(outcome.interpretation.screen.id == screen.id)
         #expect(outcome.interpretation.spec.scenario == .jobListing)
         #expect(FileManager.default.fileExists(atPath: outcome.interpretation.extractionResult.entitiesJSONPath))
+    }
+
+    @MainActor
+    @Test
+    func replayServiceRecordedModeUsesPersistedModelOutput() async throws {
+        let repository = try makeRepository()
+        let storage = StoragePathService(rootFolderName: "ScreenFlowRecordedReplayTest-\(UUID().uuidString)")
+        let importer = InAppPhotoImportService(
+            processingVersion: "1.0.0",
+            storagePathService: storage
+        )
+        let pngData = try #require(Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zq4kAAAAASUVORK5CYII="))
+        let screen = try importer.importPhotoData(
+            pngData,
+            source: .photoPicker,
+            repository: repository
+        )
+        let ocrSpec = OCRBlockSpecV1(
+            schemaVersion: "OCRBlockSpec.v1",
+            source: ScreenSource.photoPicker.rawValue,
+            processingVersion: "1.0.0",
+            languageHint: "en-US",
+            blocks: []
+        )
+        let artifact = try OCRArtifactPipelineService(
+            extractionService: FakeOCRExtractor(spec: ocrSpec),
+            storagePathService: storage
+        ).runOCRAndPersist(for: screen, repository: repository)
+
+        let recordedRaw = """
+        {
+          "schemaVersion":"ScreenFlowSpec.v1",
+          "scenario":"job_listing",
+          "scenarioConfidence":0.95,
+          "entities":{"job":null,"event":null,"error":null},
+          "packSuggestions":[],
+          "modelMeta":{"model":"recorded-model","promptVersion":"screenflow-spec-v1"}
+        }
+        """
+        let recordedValidatedSpec = ScreenFlowSpecV1(
+            schemaVersion: "ScreenFlowSpec.v1",
+            scenario: .jobListing,
+            scenarioConfidence: 0.95,
+            entities: .empty,
+            packSuggestions: [],
+            modelMeta: ScreenFlowModelMeta(model: "recorded-model", promptVersion: "screenflow-spec-v1")
+        )
+        _ = try LLMArtifactPersistenceService(storagePathService: storage).persistArtifacts(
+            screenID: screen.id,
+            model: "recorded-model",
+            promptVersion: "screenflow-spec-v1",
+            rawResponseText: recordedRaw,
+            validatedSpec: recordedValidatedSpec,
+            repository: repository
+        )
+
+        let liveRuntime = CountingModelRuntime(
+            output: ScreenFlowModelOutput(
+                provider: .selfHostedOpenModel,
+                model: "live-model",
+                rawResponseText: """
+                {"schemaVersion":"ScreenFlowSpec.v1","scenario":"event_flyer","scenarioConfidence":0.4,"entities":{"job":null,"event":null,"error":null},"packSuggestions":[],"modelMeta":{"model":"live-model","promptVersion":"screenflow-spec-v1"}}
+                """
+            )
+        )
+        let replayService = ScreenFlowReplayService(liveRuntime: liveRuntime)
+
+        let outcome = try await replayService.replayOCRArtifact(
+            artifactID: artifact.id,
+            mode: .recordedModel,
+            repository: repository
+        )
+
+        #expect(outcome.interpretation.spec.scenario == .jobListing)
+        #expect(await liveRuntime.currentCallCount() == 0)
     }
 
     @MainActor

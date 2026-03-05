@@ -88,7 +88,7 @@
 - [x] Ensure deterministic output from OCR artifacts and validation/canonicalization rules.
 - [x] Add versioning for OCR schema, extraction schema, prompt versions, models, and packs.
 - [x] Build replay system for stored OCR artifacts.
-- [ ] Add recorded-model replay mode for deterministic local re-runs.
+- [x] Add recorded-model replay mode for deterministic local re-runs.
 
 ## 13. Testing
 - [ ] Unit tests for schema validation, canonicalization, pack binding, and execution engine.

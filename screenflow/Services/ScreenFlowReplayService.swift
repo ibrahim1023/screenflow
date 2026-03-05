@@ -4,6 +4,13 @@ enum ScreenFlowReplayError: Error, Equatable {
     case ocrArtifactNotFound(String)
     case screenRecordNotFound(String)
     case invalidOCRPayload(String)
+    case recordedModelResultNotFound(String)
+    case invalidRecordedModelPayload(String)
+}
+
+enum ScreenFlowReplayMode {
+    case liveModel
+    case recordedModel
 }
 
 struct ScreenFlowReplayOutcome {
@@ -21,6 +28,7 @@ struct ScreenFlowReplayService {
 
     func replayOCRArtifact(
         artifactID: String,
+        mode: ScreenFlowReplayMode = .liveModel,
         repository: ScreenFlowRepository
     ) async throws -> ScreenFlowReplayOutcome {
         guard let artifact = try repository.ocrArtifact(id: artifactID) else {
@@ -29,12 +37,14 @@ struct ScreenFlowReplayService {
 
         return try await replay(
             artifact: artifact,
+            mode: mode,
             repository: repository
         )
     }
 
     func replayLatestOCRArtifact(
         screenID: String,
+        mode: ScreenFlowReplayMode = .liveModel,
         repository: ScreenFlowRepository
     ) async throws -> ScreenFlowReplayOutcome {
         guard let artifact = try repository.latestOCRArtifact(screenId: screenID) else {
@@ -43,12 +53,14 @@ struct ScreenFlowReplayService {
 
         return try await replay(
             artifact: artifact,
+            mode: mode,
             repository: repository
         )
     }
 
     private func replay(
         artifact: OCRArtifact,
+        mode: ScreenFlowReplayMode,
         repository: ScreenFlowRepository
     ) async throws -> ScreenFlowReplayOutcome {
         let artifactURL = URL(fileURLWithPath: artifact.blocksJSONPath)
@@ -61,7 +73,13 @@ struct ScreenFlowReplayService {
             throw ScreenFlowReplayError.screenRecordNotFound(artifact.screenId)
         }
 
-        let interpretation = try await ScreenFlowInterpretationService(runtime: liveRuntime).interpret(
+        let runtime = try runtimeForReplay(
+            mode: mode,
+            screenID: artifact.screenId,
+            repository: repository
+        )
+
+        let interpretation = try await ScreenFlowInterpretationService(runtime: runtime).interpret(
             ocrSpec: ocrSpec,
             screen: screen,
             repository: repository
@@ -71,5 +89,28 @@ struct ScreenFlowReplayService {
             ocrArtifact: artifact,
             interpretation: interpretation
         )
+    }
+
+    private func runtimeForReplay(
+        mode: ScreenFlowReplayMode,
+        screenID: String,
+        repository: ScreenFlowRepository
+    ) throws -> any ScreenFlowModelRunning {
+        switch mode {
+        case .liveModel:
+            return liveRuntime
+        case .recordedModel:
+            guard let llmResult = try repository.latestLLMResult(screenId: screenID) else {
+                throw ScreenFlowReplayError.recordedModelResultNotFound(screenID)
+            }
+            let rawData = try Data(contentsOf: URL(fileURLWithPath: llmResult.rawResponseJSONPath))
+            guard let rawResponseText = String(data: rawData, encoding: .utf8) else {
+                throw ScreenFlowReplayError.invalidRecordedModelPayload(llmResult.rawResponseJSONPath)
+            }
+            return RecordedScreenFlowModelRuntime(
+                model: llmResult.model,
+                rawResponseText: rawResponseText
+            )
+        }
     }
 }
