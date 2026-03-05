@@ -8,6 +8,7 @@ struct ScreenDetailView: View {
     @State private var latestSpec: ScreenFlowSpecV1?
     @State private var latestExtraction: ExtractionResult?
     @State private var loadErrorMessage: String?
+    @State private var isPresentingEntityEditor = false
 
     var body: some View {
         List {
@@ -20,6 +21,27 @@ struct ScreenDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task(id: record.id) {
             await loadLatestExtractionSpec()
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Edit Entities") {
+                    isPresentingEntityEditor = true
+                }
+                .disabled(latestSpec == nil || latestExtraction == nil)
+            }
+        }
+        .sheet(isPresented: $isPresentingEntityEditor) {
+            if let latestSpec, let latestExtraction {
+                ScreenEntityEditorView(
+                    extractionResult: latestExtraction,
+                    baseSpec: latestSpec
+                ) { savedSpec, overridePath in
+                    self.latestSpec = savedSpec
+                    self.latestExtraction?.userOverridesJSONPath = overridePath
+                }
+            } else {
+                Text("No extraction available to edit.")
+            }
         }
         .alert("Load Error", isPresented: Binding(
             get: { loadErrorMessage != nil },
@@ -70,6 +92,9 @@ struct ScreenDetailView: View {
                 metadataRow(label: "Extraction ID", value: extraction.id)
                 metadataRow(label: "Schema", value: extraction.schemaVersion)
                 metadataRow(label: "Extracted", value: extraction.createdAt.formatted(date: .abbreviated, time: .shortened))
+                if let overridePath = extraction.userOverridesJSONPath {
+                    metadataRow(label: "Overrides", value: overridePath)
+                }
             } else {
                 metadataRow(label: "Extraction", value: "No extraction artifact found")
             }
@@ -146,7 +171,8 @@ struct ScreenDetailView: View {
                 return
             }
 
-            let data = try Data(contentsOf: URL(fileURLWithPath: latest.entitiesJSONPath))
+            let specPath = latest.userOverridesJSONPath ?? latest.entitiesJSONPath
+            let data = try Data(contentsOf: URL(fileURLWithPath: specPath))
             let spec = try JSONDecoder().decode(ScreenFlowSpecV1.self, from: data)
             latestSpec = spec
         } catch {
