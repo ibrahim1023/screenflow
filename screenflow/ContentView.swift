@@ -32,7 +32,7 @@ struct ContentView: View {
                     Section("Screens (\(screenRecords.count))") {
                         ForEach(screenRecords) { record in
                             NavigationLink {
-                                Text(record.id)
+                                ScreenDetailView(record: record)
                             } label: {
                                 ScreenLibraryRow(record: record)
                             }
@@ -134,7 +134,7 @@ struct ContentView: View {
     }
 }
 
-private struct ScreenLibraryRow: View {
+struct ScreenLibraryRow: View {
     let record: ScreenRecord
 
     var body: some View {
@@ -162,7 +162,7 @@ private struct ScreenLibraryRow: View {
     }
 }
 
-private struct ScreenshotThumbnailView: View {
+struct ScreenshotThumbnailView: View {
     let imagePath: String
 
     var body: some View {
@@ -200,7 +200,7 @@ private struct ScreenshotThumbnailView: View {
     }
 }
 
-private extension ScenarioType {
+extension ScenarioType {
     var displayName: String {
         switch self {
         case .unknown:
@@ -215,7 +215,7 @@ private extension ScenarioType {
     }
 }
 
-private extension ScreenSource {
+extension ScreenSource {
     var displayName: String {
         switch self {
         case .shareSheet:

@@ -20,6 +20,7 @@ ScreenFlow is an iOS app that turns screenshots into structured, validated outpu
 - Stores original image, normalized image, and metadata sidecar per screen ID
 - Uses a centralized version catalog for OCR schema, extraction schema, prompt version, model defaults, and pack versions
 - Provides a Home Library list with per-screen thumbnail, scenario, source, confidence, and import timestamp
+- Provides a Screen Detail view with extraction metadata, entities, and pack suggestions
 - Does not require paid LLM providers
 
 ## Architecture Summary

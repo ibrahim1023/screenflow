@@ -79,7 +79,7 @@
 
 ## 11. UI and UX
 - [x] Home library list of screens.
-- [ ] Screen detail view with scenario, entities, pack suggestions.
+- [x] Screen detail view with scenario, entities, pack suggestions.
 - [ ] Edit entities before pack execution.
 - [ ] Pack execution screen with step-by-step progress and outputs.
 - [ ] Settings screen: cloud drafting toggle, data retention, privacy mode.

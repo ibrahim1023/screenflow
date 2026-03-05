@@ -219,6 +219,12 @@ final class ScreenFlowRepository {
         return try modelContext.fetch(descriptor).first
     }
 
+    func listExtractionResults(screenID: String) throws -> [ExtractionResult] {
+        var descriptor = FetchDescriptor<ExtractionResult>(predicate: #Predicate { $0.screenId == screenID })
+        descriptor.sortBy = [SortDescriptor(\.createdAt, order: .reverse)]
+        return try modelContext.fetch(descriptor)
+    }
+
     @discardableResult
     func upsertActionPackRun(_ input: ActionPackRunInput) throws -> ActionPackRun {
         if let existing = try actionPackRun(id: input.id) {
