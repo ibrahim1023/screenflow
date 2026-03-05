@@ -81,7 +81,7 @@
 - [x] Home library list of screens.
 - [x] Screen detail view with scenario, entities, pack suggestions.
 - [x] Edit entities before pack execution.
-- [ ] Pack execution screen with step-by-step progress and outputs.
+- [x] Pack execution screen with step-by-step progress and outputs.
 - [ ] Settings screen: cloud drafting toggle, data retention, privacy mode.
 
 ## 12. Determinism and Replay

@@ -74,7 +74,8 @@ struct ActionPackExecutionService {
         spec: ScreenFlowSpecV1,
         screenID: String,
         repository: ScreenFlowRepository,
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        onStepCompleted: ((ActionPackStepTrace) -> Void)? = nil
     ) throws -> ActionPackRun {
         let validated = try validationService.validate(selection: selection, spec: spec)
 
@@ -122,6 +123,9 @@ struct ActionPackExecutionService {
                         message: nil
                     )
                 )
+                if let latestTrace = stepTraces.last {
+                    onStepCompleted?(latestTrace)
+                }
             } catch {
                 finalStatus = .failed
                 stepTraces.append(
@@ -132,6 +136,9 @@ struct ActionPackExecutionService {
                         message: error.localizedDescription
                     )
                 )
+                if let latestTrace = stepTraces.last {
+                    onStepCompleted?(latestTrace)
+                }
                 break
             }
         }

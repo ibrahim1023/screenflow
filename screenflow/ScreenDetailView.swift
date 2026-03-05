@@ -139,6 +139,10 @@ struct ScreenDetailView: View {
                         .padding(.vertical, 2)
                     }
                 }
+
+                NavigationLink("Open Pack Execution") {
+                    PackExecutionView(record: record, spec: spec)
+                }
             } else {
                 Text("No pack suggestions available")
                     .foregroundStyle(.secondary)
