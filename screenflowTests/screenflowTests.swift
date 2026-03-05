@@ -569,6 +569,54 @@ struct screenflowTests {
     }
 
     @MainActor
+    @Test func ocrArtifactPipelineIsDeterministicForSameInput() async throws {
+        let repository = try makeRepository()
+        let rootFolderName = "ScreenFlowOCRDeterminismTest-\(UUID().uuidString)"
+        let storage = StoragePathService(rootFolderName: rootFolderName)
+        let importer = InAppPhotoImportService(
+            processingVersion: "1.0.0",
+            storagePathService: storage
+        )
+
+        let pngData = try #require(Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zq4kAAAAASUVORK5CYII="))
+        let screen = try importer.importPhotoData(
+            pngData,
+            source: .photoPicker,
+            repository: repository
+        )
+
+        let fakeSpec = OCRBlockSpecV1(
+            schemaVersion: "OCRBlockSpec.v1",
+            source: ScreenSource.photoPicker.rawValue,
+            processingVersion: "1.0.0",
+            languageHint: "en-US",
+            blocks: [
+                OCRTextBlock(
+                    text: "hello",
+                    bbox: OCRBoundingBox(x: 0.1, y: 0.2, width: 0.3, height: 0.1),
+                    pageSize: OCRPageSize(width: 1, height: 1),
+                    confidence: 0.99
+                )
+            ]
+        )
+
+        let pipeline = OCRArtifactPipelineService(
+            extractionService: FakeOCRExtractor(spec: fakeSpec),
+            storagePathService: storage
+        )
+
+        let first = try pipeline.runOCRAndPersist(for: screen, repository: repository)
+        let firstData = try Data(contentsOf: URL(fileURLWithPath: first.blocksJSONPath))
+
+        let second = try pipeline.runOCRAndPersist(for: screen, repository: repository)
+        let secondData = try Data(contentsOf: URL(fileURLWithPath: second.blocksJSONPath))
+
+        #expect(first.id == second.id)
+        #expect(first.blocksJSONPath == second.blocksJSONPath)
+        #expect(firstData == secondData)
+    }
+
+    @MainActor
     @Test
     func screenFlowSpecDecodesUnknownScenarioAsUnknown() async throws {
         let json = """

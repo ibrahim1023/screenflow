@@ -85,7 +85,7 @@
 - [ ] Settings screen: cloud drafting toggle, data retention, privacy mode.
 
 ## 12. Determinism and Replay
-- [ ] Ensure deterministic output from OCR artifacts and validation/canonicalization rules.
+- [x] Ensure deterministic output from OCR artifacts and validation/canonicalization rules.
 - [ ] Add versioning for OCR schema, extraction schema, prompt versions, models, and packs.
 - [ ] Build replay system for stored OCR artifacts.
 - [ ] Add recorded-model replay mode for deterministic local re-runs.

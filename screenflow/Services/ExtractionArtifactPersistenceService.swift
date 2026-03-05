@@ -24,8 +24,7 @@ struct ExtractionArtifactPersistenceService {
         let extractedDirectory = try storagePathService.applicationSupportPath(for: .extracted)
         try storagePathService.fileManager.createDirectory(at: extractedDirectory, withIntermediateDirectories: true)
 
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        let encoder = DeterministicJSONCodec.makeEncoder()
         let canonicalData = try encoder.encode(spec)
         let intentGraph = intentGraphService.buildGraph(from: spec)
         let graphData = try encoder.encode(intentGraph)

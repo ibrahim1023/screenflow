@@ -46,9 +46,7 @@ struct OCRArtifactPipelineService {
         try storagePathService.fileManager.createDirectory(at: ocrDirectory, withIntermediateDirectories: true)
 
         let jsonURL = ocrDirectory.appendingPathComponent("\(artifactID).json", isDirectory: false)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-
+        let encoder = DeterministicJSONCodec.makeEncoder()
         let payload = try encoder.encode(spec)
         try payload.write(to: jsonURL, options: .atomic)
 
@@ -74,7 +72,7 @@ struct OCRArtifactPipelineService {
         payload.append(Data(processingVersion.utf8))
         payload.append(0x1F)
 
-        if let encoded = try? JSONEncoder().encode(spec) {
+        if let encoded = try? DeterministicJSONCodec.makeEncoder().encode(spec) {
             payload.append(encoded)
         }
 

@@ -34,8 +34,7 @@ struct LLMArtifactPersistenceService {
 
         try Data(rawResponseText.utf8).write(to: rawURL, options: .atomic)
 
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        let encoder = DeterministicJSONCodec.makeEncoder()
         let validatedData = try encoder.encode(validatedSpec)
         try validatedData.write(to: validatedURL, options: .atomic)
 
