@@ -55,6 +55,7 @@ Pipeline:
 6. Action Pack selection
 7. Pack execution engine
 8. Execution trace persisted
+9. Replay from persisted `OCRBlockSpec.v1` artifacts for deterministic re-runs
 
 Key rule:
 Model proposes structure. Validator decides acceptance.

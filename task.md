@@ -87,7 +87,7 @@
 ## 12. Determinism and Replay
 - [x] Ensure deterministic output from OCR artifacts and validation/canonicalization rules.
 - [x] Add versioning for OCR schema, extraction schema, prompt versions, models, and packs.
-- [ ] Build replay system for stored OCR artifacts.
+- [x] Build replay system for stored OCR artifacts.
 - [ ] Add recorded-model replay mode for deterministic local re-runs.
 
 ## 13. Testing

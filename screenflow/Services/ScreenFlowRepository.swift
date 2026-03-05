@@ -143,6 +143,12 @@ final class ScreenFlowRepository {
         return try modelContext.fetch(descriptor).first
     }
 
+    func latestOCRArtifact(screenId: String) throws -> OCRArtifact? {
+        var descriptor = FetchDescriptor<OCRArtifact>(predicate: #Predicate { $0.screenId == screenId })
+        descriptor.sortBy = [SortDescriptor(\.createdAt, order: .reverse)]
+        return try modelContext.fetch(descriptor).first
+    }
+
     @discardableResult
     func upsertLLMResult(_ input: LLMResultInput) throws -> LLMResult {
         if let existing = try llmResult(id: input.id) {
@@ -172,6 +178,12 @@ final class ScreenFlowRepository {
 
     func llmResult(id: String) throws -> LLMResult? {
         let descriptor = FetchDescriptor<LLMResult>(predicate: #Predicate { $0.id == id })
+        return try modelContext.fetch(descriptor).first
+    }
+
+    func latestLLMResult(screenId: String) throws -> LLMResult? {
+        var descriptor = FetchDescriptor<LLMResult>(predicate: #Predicate { $0.screenId == screenId })
+        descriptor.sortBy = [SortDescriptor(\.createdAt, order: .reverse)]
         return try modelContext.fetch(descriptor).first
     }
 

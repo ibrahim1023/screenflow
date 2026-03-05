@@ -966,6 +966,73 @@ struct screenflowTests {
 
     @MainActor
     @Test
+    func replayServiceReplaysStoredOCRArtifact() async throws {
+        let repository = try makeRepository()
+        let storage = StoragePathService(rootFolderName: "ScreenFlowReplayTest-\(UUID().uuidString)")
+        let importer = InAppPhotoImportService(
+            processingVersion: "1.0.0",
+            storagePathService: storage
+        )
+        let pngData = try #require(Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zq4kAAAAASUVORK5CYII="))
+        let screen = try importer.importPhotoData(
+            pngData,
+            source: .photoPicker,
+            repository: repository
+        )
+
+        let ocrSpec = OCRBlockSpecV1(
+            schemaVersion: "OCRBlockSpec.v1",
+            source: ScreenSource.photoPicker.rawValue,
+            processingVersion: "1.0.0",
+            languageHint: "en-US",
+            blocks: [
+                OCRTextBlock(
+                    text: "iOS Engineer role at Acme",
+                    bbox: OCRBoundingBox(x: 0.1, y: 0.2, width: 0.8, height: 0.1),
+                    pageSize: OCRPageSize(width: 1, height: 1),
+                    confidence: 0.99
+                )
+            ]
+        )
+
+        let artifact = try OCRArtifactPipelineService(
+            extractionService: FakeOCRExtractor(spec: ocrSpec),
+            storagePathService: storage
+        ).runOCRAndPersist(for: screen, repository: repository)
+
+        let modelRaw = """
+        {
+          "schemaVersion":"ScreenFlowSpec.v1",
+          "scenario":"job_listing",
+          "scenarioConfidence":0.87,
+          "entities":{"job":null,"event":null,"error":null},
+          "packSuggestions":[],
+          "modelMeta":{"model":"llama3.1:8b","promptVersion":"screenflow-spec-v1"}
+        }
+        """
+        let replayService = ScreenFlowReplayService(
+            liveRuntime: FakeModelRuntime(
+                output: ScreenFlowModelOutput(
+                    provider: .selfHostedOpenModel,
+                    model: "llama3.1:8b",
+                    rawResponseText: modelRaw
+                )
+            )
+        )
+
+        let outcome = try await replayService.replayOCRArtifact(
+            artifactID: artifact.id,
+            repository: repository
+        )
+
+        #expect(outcome.ocrArtifact.id == artifact.id)
+        #expect(outcome.interpretation.screen.id == screen.id)
+        #expect(outcome.interpretation.spec.scenario == .jobListing)
+        #expect(FileManager.default.fileExists(atPath: outcome.interpretation.extractionResult.entitiesJSONPath))
+    }
+
+    @MainActor
+    @Test
     func intentGraphServiceBuildsDeterministicGraphFromScenarioAndEntities() async throws {
         let service = ScreenFlowIntentGraphService()
         let spec = ScreenFlowSpecV1(
